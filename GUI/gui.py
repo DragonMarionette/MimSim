@@ -53,15 +53,15 @@ def main():
                      title='Alert')
             return False
         else:
-            xml_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.xml')
+            xml_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.rsc')
             csv_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.csv')
             if xml_exists and csv_exists:
-                overwrite_alert_string = sim_window['-TITLE-'].get() + '.xml and ' \
+                overwrite_alert_string = sim_window['-TITLE-'].get() + '.rsc and ' \
                                          + sim_window['-TITLE-'].get() + '.csv already exist in ' \
                                          + sim_window['-DIR_READOUT-'].get() \
                                          + '. This action will overwrite one or both of these files.\n\nProceed anyway?'
             elif xml_exists:
-                overwrite_alert_string = sim_window['-TITLE-'].get() + '.xml already exists in ' \
+                overwrite_alert_string = sim_window['-TITLE-'].get() + '.rsc already exists in ' \
                                          + sim_window['-DIR_READOUT-'].get() \
                                          + '. This action will overwrite this file.\n\nProceed anyway?'
             elif csv_exists:
@@ -134,7 +134,7 @@ def main():
 
         # File menu events
         if event == 'Import...':
-            xml_in = Sg.popup_get_file('Select local XML', title='import', file_types=(('XML Files', '*.xml'),), )
+            xml_in = Sg.popup_get_file('Select local XML', title='import', file_types=(('XML Files', '*.rsc'),), )
             if Sg.popup_ok_cancel('This will overwrite any parameters you\'ve already entered. Proceed?',
                                   title='Confirm') == 'OK':
                 try:
@@ -162,7 +162,7 @@ def main():
                 try:
                     xt.write_xml(sim_window['-DIR_READOUT-'].get() + '/', sim)
                     Sg.popup(f"Success. Simulation parameters exported to "
-                             f"{sim_window['-DIR_READOUT-'].get()}/{sim_window['-TITLE-'].get()}.xml.", title='Success')
+                             f"{sim_window['-DIR_READOUT-'].get()}/{sim_window['-TITLE-'].get()}.rsc.", title='Success')
                 except:
                     Sg.popup('An unknown error occurred. Try checking that you have permission '
                              'to write to the selected directory and you are not trying to write '

@@ -64,7 +64,7 @@ def write_xml(destination_path, sim) -> None:
     if destination_path[-1] != '/':
         destination_path += '/'
     data_tree = build_xml(sim)
-    data_tree.write(destination_path + sim.title + '.xml', pretty_print=True)
+    data_tree.write(destination_path + sim.title + '.rsc', pretty_print=True)
 
 
 # Functions for reading a Simulation from XML
