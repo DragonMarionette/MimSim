@@ -1,0 +1,16 @@
+<data>
+  <meta title="simple_example" encounters="9223372036854775807" generations="10" repetitions="10" repopulate="0">
+    <cols_extra/>
+  </meta>
+  <prey>
+    <prey_spec spec_name="honey bee" phen="bee-like" camo="0.0" pal="0.3" size="1.0" popu="100"/>
+    <prey_spec spec_name="bumblebee" phen="bee-like" camo="0.0" pal="0.5" size="1.5" popu="100"/>
+    <prey_spec spec_name="robber fly" phen="bee-like" camo="0.0" pal="1.0" size="1.0" popu="100"/>
+    <prey_spec spec_name="stink bug" phen="brown" camo="0.6" pal="0.5" size="1.0" popu="100"/>
+    <prey_spec spec_name="weevil" phen="brown" camo="0.6" pal="1.0" size="1.0" popu="100"/>
+    <prey_spec spec_name="house fly" phen="fly-like" camo="0.3" pal="1.0" size="1.0" popu="100"/>
+  </prey>
+  <predators>
+    <pred_spec spec_name="sparrow" app="30" mem="5" insatiable="True" popu="10"/>
+  </predators>
+</data>
