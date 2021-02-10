@@ -1,4 +1,4 @@
-from MimSim import controller as mc,\
+from mimsim import controller as mc,\
     mimicry as mim,\
     xml_tools as xt
 

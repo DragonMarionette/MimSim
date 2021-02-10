@@ -8,9 +8,9 @@ import platform
 import PySimpleGUI as Sg
 import webbrowser
 
-import MimSim.controller as mc
-import MimSim.mimicry as mim
-import MimSim.xml_tools as xt
+import mimsim.controller as mc
+import mimsim.mimicry as mim
+import mimsim.xml_tools as xt
 
 about_info = {
     'name': 'Mimicry Simulator (Beta)',

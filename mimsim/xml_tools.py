@@ -10,7 +10,7 @@ from copy import deepcopy
 import lxml.etree as et
 
 # imports from this package
-import MimSim.mimicry as mim
+import mimsim.mimicry as mim
 
 
 # Functions for writing a Simulation to XML

@@ -3,8 +3,8 @@ import csv
 from copy import deepcopy
 
 # imports from this package
-import MimSim.mimicry as mim
-import MimSim.xml_tools as xt
+import mimsim.mimicry as mim
+import mimsim.xml_tools as xt
 
 
 # Runs a single-generation trial and returns results
