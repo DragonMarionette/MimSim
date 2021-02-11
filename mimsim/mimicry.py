@@ -35,8 +35,11 @@ class Prey:
         if not 0 <= self.pal <= 1:
             raise ValueError('Camo must be between 0 and 1 inclusive')
 
-    def __str__(self, full: bool = False):
-        fields = ['popu', 'popu_orig' 'phen', 'size', 'camo', 'pal'] if full\
+    def __str__(self):
+        return self.string()
+
+    def string(self, full: bool = False):
+        fields = ['popu', 'popu_orig', 'phen', 'size', 'camo', 'pal'] if full \
             else ['popu', 'phen', 'size', 'camo', 'pal']
         kv_pairs = []
         for field in fields:
@@ -188,19 +191,19 @@ class Predator:
         self.prey_eaten += prey_item.size
 
     def encounter(self, prey_item: Prey) -> bool:  # eat prey or decide not to
-        if self.prey_eaten >= self.app:
+        if not self.hungry():
             return False
-
+#  TODO: figure out why pursuit chance is getting lower after the first generation
         pursuit_chance = 1  # chance of encounter
         pursuit_chance *= (1 - prey_item.camo)  # *(chance that prey is seen)
         pursuit_chance *= self.get_pref(prey_item.phen)  # *(chance that prey is sufficiently appetizing)
 
-        if not self.insatiable:
-            size = prey_item.size
-            if size > self.app - self.prey_eaten:
-                size = self.app - self.prey_eaten
-            pursuit_chance *= \
-                size * ((self.app - self.prey_eaten) / self.app ** 2)  # *(chance that prey is sufficiently filling)
+        # if not self.insatiable:
+        #     size = prey_item.size
+        #     if size > self.app - self.prey_eaten:
+        #         size = self.app - self.prey_eaten
+        #     pursuit_chance *= \
+        #         size * ((self.app - self.prey_eaten) / self.app ** 2)  # *(chance that prey is sufficiently filling)
 
         # print(pursuit_chance)
         if pursuit_chance >= random.random():
@@ -236,6 +239,11 @@ class Predator:
 
     def hungry(self) -> bool:
         return self.prey_eaten < self.app
+
+    def reset(self):
+        for phen in self.prefs:
+            self.prefs[phen] = []
+        self.prey_eaten = 0
 
 
 # PreyPool object represents all of the predators in one ecosystem
@@ -298,7 +306,7 @@ class PredatorPool:
         if spec_name in self._dict:
             return False
         bisect.insort(self._species_names, spec_name)
-        self._dict[spec_name] = [copy(pred_obj) for _ in range(count)]
+        self._dict[spec_name] = [deepcopy(pred_obj) for _ in range(count)]
         return True
 
     def remove(self, spec_name: str) -> bool:
@@ -352,7 +360,12 @@ class PredatorPool:
         return None, None
 
     def pretty_list(self):
-        return [name + ': ' + str(obj[0]) for name, obj in self]
+        return [name + ': popu=' + str(len(obj)) + '; ' + str(obj[0]) for name, obj in self]
+
+    def reset(self):
+        for pred_list in self._dict.values():
+            for pred in pred_list:
+                pred.reset()
 
 
 def set_with_default(param_in, default_val, intended_type='unspecified'):
