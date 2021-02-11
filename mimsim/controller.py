@@ -5,7 +5,8 @@ from typing import Iterable
 
 # imports from this package
 import mimsim.mimicry as mim
-import mimsim.xml_tools as xt
+
+# TODO: optimize using Numba or Cython or something
 
 
 # Runs a single-generation trial and returns results
@@ -87,11 +88,9 @@ class Simulation:
     def __str__(self):
         return f'<Simulation "{self.title}">'
 
-    def run(self, file_destination: str, verbose: bool = False, make_xml: bool = True):
-        if make_xml:
-            xt.write_xml(file_destination, self)
-
-        # Run simulation and print results to CSV
+    def run(self, file_destination: str, verbose: bool = False):
+        if not file_destination or file_destination[-1] != '/':
+            file_destination += '/'
         prey_names = self.prey_pool.names()
         headers = (['trial', 'generation'] * verbose)\
                   + [species + ' popu' for species in prey_names] + list(self.cols_extra)

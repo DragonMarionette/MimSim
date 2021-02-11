@@ -1,130 +1,121 @@
 """
-build_xml(Simulation) -> lxml.etree.ElementTree
 write_xml(path, sim) -> None
 load_sim(file_path, as_dict=False) -> mc.Simulation
 """
 
 # builtin or external imports
-from copy import deepcopy
-
 import lxml.etree as et
-
 # imports from this package
-import mimsim.mimicry as mim
+from mimsim import controller as mc
+from mimsim import mimicry as mim
 
 
-# Functions for writing a Simulation to XML
-
-def _build_meta(data, title, encounters, generations, repetitions, repopulate, cols_extra):
-    meta = et.SubElement(data, 'meta')
-    meta.set('title', title)
-    meta.set('encounters', str(encounters))
-    meta.set('generations', str(generations))
-    meta.set('repetitions', str(repetitions))
-    meta.set('repopulate', str(repopulate))
-
-    cols = et.SubElement(meta, 'cols_extra')
-    for k, v in cols_extra.items():
-        et.SubElement(cols, 'col', {'key': k, 'val': str(v), 'type': str(type(v))})
+def validate_sim(tree: et.ElementTree):
+    sim_schema_src = et.parse('../mimsim/rsc/simulation_specification.xsd')
+    sim_schema = et.XMLSchema(sim_schema_src)
+    sim_schema.assertValid(tree)
+    return True
 
 
-def _build_prey(data, prey_pool):
-    prey = et.SubElement(data, 'prey')
-    for prey_name, prey_obj in prey_pool:
-        prey_spec = et.SubElement(prey, 'prey_spec')
-        prey_spec.set('spec_name', prey_name)
-        prey_spec.set('phen', prey_obj.phen)
-        prey_spec.set('camo', str(prey_obj.camo))
-        prey_spec.set('pal', str(prey_obj.pal))
-        prey_spec.set('size', str(prey_obj.size))
-        prey_spec.set('popu', str(prey_obj.popu_orig))
-
-
-def _build_pred(data, pred_pool):
-    predators = et.SubElement(data, 'predators')
-    for pred_name in pred_pool.names():
-        pred_obj = pred_pool.species_rep(pred_name)
-        pred_spec = et.SubElement(predators, 'pred_spec')
-        pred_spec.set('spec_name', pred_name)
-        pred_spec.set('app', str(pred_obj.app))
-        pred_spec.set('mem', str(pred_obj.mem))
-        pred_spec.set('insatiable', str(pred_obj.insatiable))
-        pred_spec.set('popu', str(pred_pool._popu_of(pred_name)))
-
-
-def build_xml(sim) -> et.ElementTree:
-    data = et.Element('data')
-    _build_meta(data, sim.title, sim.encounters, sim.generations, sim.repetitions, sim.repopulate, sim.cols_extra)
-    _build_prey(data, sim.prey_pool)
-    _build_pred(data, sim.pred_pool)
-    return et.ElementTree(data)
-
-
-def write_xml(destination_path, sim) -> None:
-    if destination_path[-1] != '/':
-        destination_path += '/'
-    data_tree = build_xml(sim)
-    data_tree.write(destination_path + sim.title + '.rsc', pretty_print=True)
-
-
-# Functions for reading a Simulation from XML
-
-def _load_meta(data):
-    attr = deepcopy(data.find('meta').attrib)
-    attr['encounters'] = int(attr['encounters'])
-    attr['generations'] = int(attr['generations'])
-    attr['repetitions'] = int(attr['repetitions'])
-    attr['repopulate'] = attr['repopulate'] == 'True'
-
-    attr['cols_extra'] = dict()
-    for c in data.find('meta').find('cols_extra').findall('col'):
-        attr['cols_extra'][c.get('key')] = _convert_as(c.get('type'), c.get('val'))
-    return attr
-
-
-def _convert_as(val_type, value):
-    conversions = {
-        "<class 'int'>": int,
-        "<class 'float'>": float,
-        "<class 'bool'>": bool,
-        "<class 'str'>": str
-    }
-    return conversions[val_type](value)
-
-
-def _load_prey(data):
+def _prey_from_root(root: et.Element) -> mim.PreyPool:
     prey_pool = mim.PreyPool()
-    for species in data.find('prey').findall('prey_spec'):
+    prey_root = root.find('prey_pool')
+    for species in prey_root:
         prey_pool.append(
-            species.get('spec_name'),
-            mim.Prey(phen=species.get('phen'), camo=float(species.get('camo')),
-                     pal=float(species.get('pal')),
-                     size=float(species.get('size')), popu=int(species.get('popu')))
+            species.find('spec_name').text,
+            mim.Prey(
+                popu=int(species.find('popu').text),
+                phen=species.find('phen').text,
+                size=float(species.find('size').text),
+                camo=float(species.find('camo').text),
+                pal=float(species.find('pal').text)
+            )
         )
     return prey_pool
 
 
-def _load_pred(data, prey_pool=None):
-    pred_pool = mim.PredatorPool()
-    for species in data.find('predators').findall('pred_spec'):
-        pred_pool.append(
-            species.attrib['spec_name'],
-            mim.Predator(prey_types=prey_pool, app=int(species.get('app')),
-                         mem=int(species.get('mem')), insatiable=(species.get('insatiable') == 'True')),
-            int(species.get('popu'))
-        )
+def load_prey_pool(file_path_in: str) -> mim.PreyPool:
+    sim_tree = et.parse(file_path_in)
+    validate_sim(sim_tree)
+    root = sim_tree.getroot()
+    return _prey_from_root(root)
 
+
+def _pred_from_root(root: et.Element) -> mim.PredatorPool:
+    pred_pool = mim.PredatorPool()
+    prey_root = root.find('pred_pool')
+    for species in prey_root:
+        pred_pool.append(
+            species.find('spec_name').text,
+            mim.Predator(
+                app=species.find('app').text,
+                mem=int(species.find('mem').text),
+                insatiable=bool(species.find('insatiable').text == 'true'),
+            ),
+            int(species.find('popu').text)
+        )
     return pred_pool
 
 
-def load_sim(file_path: str):
-    tree = et.parse(file_path)
-    data = tree.getroot()
-    meta = _load_meta(data)
-    prey_pool = _load_prey(data)
-    pred_pool = _load_pred(data, prey_pool=prey_pool)
-    import controller as mc
-    return mc.Simulation(title=meta['title'], prey_pool=prey_pool, pred_pool=pred_pool,
-                         encounters=meta['encounters'], generations=meta['generations'],
-                         repetitions=meta['repetitions'],
-                         repopulate=meta['repopulate'], cols_extra=meta['cols_extra'])
+def load_pred_pool(file_path_in: str) -> mim.PredatorPool:
+    sim_tree = et.parse(file_path_in)
+    validate_sim(sim_tree)
+    root = sim_tree.getroot()
+    return _pred_from_root(root)
+
+
+def load_sim(file_path_in: str) -> mc.Simulation:
+    sim_tree = et.parse(file_path_in)
+    validate_sim(sim_tree)
+    root = sim_tree.getroot()
+    params = {elem.tag: elem.text for elem in root.find('params')}
+    prey_pool = _prey_from_root(root)
+    pred_pool = _pred_from_root(root)
+    return mc.Simulation(
+        title=params['title'],
+        encounters=int(params['encounters']),
+        generations=int(params['generations']),
+        repetitions=int(params['repetitions']),
+        repopulate=bool(params['repopulate'] == 'true'),
+        prey_pool=prey_pool,
+        pred_pool=pred_pool
+    )
+
+
+def _build_xml(sim: mc.Simulation):
+    root = et.Element('simulation')
+
+    params = et.SubElement(root, 'params')
+    et.SubElement(params, 'title').text = sim.title
+    et.SubElement(params, 'encounters').text = str(sim.encounters)
+    et.SubElement(params, 'generations').text = str(sim.generations)
+    et.SubElement(params, 'repetitions').text = str(sim.repetitions)
+    et.SubElement(params, 'repopulate').text = str(sim.repopulate).lower()
+
+    prey_pool = et.SubElement(root, 'prey_pool')
+    for prey_name, prey_obj in sim.prey_pool:
+        prey_elem = et.SubElement(prey_pool, 'prey_spec')
+        et.SubElement(prey_elem, 'spec_name').text = prey_name
+        et.SubElement(prey_elem, 'popu').text = str(prey_obj.popu)
+        et.SubElement(prey_elem, 'phen').text = prey_obj.phen
+        et.SubElement(prey_elem, 'size').text = str(prey_obj.size)
+        et.SubElement(prey_elem, 'camo').text = str(prey_obj.camo)
+        et.SubElement(prey_elem, 'pal').text = str(prey_obj.pal)
+
+    pred_pool = et.SubElement(root, 'pred_pool')
+    for pred_name, pred_obj in sim.pred_pool.list_all_reps():
+        pred_elem = et.SubElement(pred_pool, 'pred_spec')
+        et.SubElement(pred_elem, 'spec_name').text = pred_name
+        et.SubElement(pred_elem, 'popu').text = str(sim.pred_pool.popu(pred_name))
+        et.SubElement(pred_elem, 'app').text = str(pred_obj.app)
+        et.SubElement(pred_elem, 'mem').text = str(pred_obj.mem)
+        et.SubElement(pred_elem, 'insatiable').text = str(pred_obj.insatiable).lower()
+
+    return et.ElementTree(root)
+
+
+def write_xml(destination_path: str, sim: mc.Simulation):  # TODO: add option for different title
+    if not destination_path or destination_path[-1] != '/':
+        destination_path += '/'
+    data_tree = _build_xml(sim)
+    data_tree.write(destination_path + sim.title + '.simu.xml', pretty_print=True)

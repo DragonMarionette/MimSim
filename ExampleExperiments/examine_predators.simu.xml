@@ -1,0 +1,68 @@
+<simulation>
+  <params>
+    <title>examine_predators</title>
+    <encounters>100000</encounters>
+    <generations>1</generations>
+    <repetitions>1</repetitions>
+    <repopulate>false</repopulate>
+  </params>
+  <prey_pool>
+    <prey_spec>
+      <spec_name>bumblebee</spec_name>
+      <popu>100</popu>
+      <phen>bee-like</phen>
+      <size>1.5</size>
+      <camo>0.0</camo>
+      <pal>0.5</pal>
+    </prey_spec>
+    <prey_spec>
+      <spec_name>honey bee</spec_name>
+      <popu>100</popu>
+      <phen>bee-like</phen>
+      <size>1.0</size>
+      <camo>0.0</camo>
+      <pal>0.3</pal>
+    </prey_spec>
+    <prey_spec>
+      <spec_name>house fly</spec_name>
+      <popu>100</popu>
+      <phen>fly-like</phen>
+      <size>1.0</size>
+      <camo>0.3</camo>
+      <pal>1.0</pal>
+    </prey_spec>
+    <prey_spec>
+      <spec_name>robber fly</spec_name>
+      <popu>100</popu>
+      <phen>bee-like</phen>
+      <size>1.0</size>
+      <camo>0.0</camo>
+      <pal>0.0</pal>
+    </prey_spec>
+    <prey_spec>
+      <spec_name>stink bug</spec_name>
+      <popu>100</popu>
+      <phen>brown</phen>
+      <size>1.0</size>
+      <camo>0.6</camo>
+      <pal>0.5</pal>
+    </prey_spec>
+    <prey_spec>
+      <spec_name>weevil</spec_name>
+      <popu>100</popu>
+      <phen>brown</phen>
+      <size>1.0</size>
+      <camo>0.6</camo>
+      <pal>1.0</pal>
+    </prey_spec>
+  </prey_pool>
+  <pred_pool>
+    <pred_spec>
+      <spec_name>sparrow</spec_name>
+      <popu>10</popu>
+      <app>30</app>
+      <mem>5</mem>
+      <insatiable>true</insatiable>
+    </pred_spec>
+  </pred_pool>
+</simulation>

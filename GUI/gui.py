@@ -22,6 +22,9 @@ about_info = {
     'repo': 'https://github.com/DragonMarionette/MimSim'
 }
 
+# TODO: add a window to signify that an operation is processing
+# TODO: limit encounters, or advise that they be limited
+
 HEADER_FONT = ('Segoe UI Semilight', 14)
 BODY_FONT = ('Segoe UI', 10)
 BUTTON_W = 7
@@ -53,15 +56,15 @@ def main():
                      title='Alert')
             return False
         else:
-            xml_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.rsc')
+            xml_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.simu.xml')
             csv_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.csv')
             if xml_exists and csv_exists:
-                overwrite_alert_string = sim_window['-TITLE-'].get() + '.rsc and ' \
+                overwrite_alert_string = sim_window['-TITLE-'].get() + '.simu.xml and ' \
                                          + sim_window['-TITLE-'].get() + '.csv already exist in ' \
                                          + sim_window['-DIR_READOUT-'].get() \
                                          + '. This action will overwrite one or both of these files.\n\nProceed anyway?'
             elif xml_exists:
-                overwrite_alert_string = sim_window['-TITLE-'].get() + '.rsc already exists in ' \
+                overwrite_alert_string = sim_window['-TITLE-'].get() + '.simu.xml already exists in ' \
                                          + sim_window['-DIR_READOUT-'].get() \
                                          + '. This action will overwrite this file.\n\nProceed anyway?'
             elif csv_exists:
@@ -134,35 +137,37 @@ def main():
 
         # File menu events
         if event == 'Import...':
-            xml_in = Sg.popup_get_file('Select local XML', title='import', file_types=(('XML Files', '*.rsc'),), )
-            if Sg.popup_ok_cancel('This will overwrite any parameters you\'ve already entered. Proceed?',
-                                  title='Confirm') == 'OK':
-                try:
-                    sim_in = xt.load_sim(xml_in)
-                    # Meta properties
-                    sim_window['-TITLE-'].update(value=sim_in.title)
-                    sim_window['-ENCOUNTERS-'].update(value=sim_in.encounters)
-                    sim_window['-GENERATIONS-'].update(value=sim_in.generations)
-                    sim_window['-REPETITIONS-'].update(value=sim_in.repetitions)
-                    sim_window['-REPOPULATE-'].update(value=sim_in.repopulate)
+            xml_in = Sg.popup_get_file('Select local simulation XML',
+                                       title='import', file_types=(('Simulation Files', '*.simu.xml'),), )
+            if xml_in:
+                if Sg.popup_ok_cancel('This will overwrite any parameters you\'ve already entered. Proceed?',
+                                      title='Confirm') == 'OK':
+                    try:
+                        sim_in = xt.load_sim(xml_in)
+                        # Meta properties
+                        sim_window['-TITLE-'].update(value=sim_in.title)
+                        sim_window['-ENCOUNTERS-'].update(value=sim_in.encounters)
+                        sim_window['-GENERATIONS-'].update(value=sim_in.generations)
+                        sim_window['-REPETITIONS-'].update(value=sim_in.repetitions)
+                        sim_window['-REPOPULATE-'].update(value=sim_in.repopulate)
 
-                    # Prey and pred properties
-                    prey_pool = sim_in.prey_pool
-                    update_prey_list()
-                    pred_pool = sim_in.pred_pool
-                    update_pred_list()
-                except AttributeError:
-                    Sg.popup(f'The file {xml_in} is not a valid simulation file. Please choose another '
-                             f'or enter simulation parameters by hand.', title='Error')
-                except:
-                    Sg.popup(f'And unknown error occurred while reading the file {xml_in}.', title='Error')
+                        # Prey and pred properties
+                        prey_pool = sim_in.prey_pool
+                        update_prey_list()
+                        pred_pool = sim_in.pred_pool
+                        update_pred_list()
+                    except AssertionError:
+                        Sg.popup(f'The file {xml_in} is not a valid simulation file. Please choose another '
+                                 f'or enter simulation parameters by hand.', title='Error')
+                    except:
+                        Sg.popup(f'And unknown error occurred while reading the file {xml_in}.', title='Error')
         elif event == 'Export...':
             sim = make_simulation()
             if sim:
                 try:
-                    xt.write_xml(sim_window['-DIR_READOUT-'].get() + '/', sim)
+                    xt.write_xml(sim_window['-DIR_READOUT-'].get(), sim)
                     Sg.popup(f"Success. Simulation parameters exported to "
-                             f"{sim_window['-DIR_READOUT-'].get()}/{sim_window['-TITLE-'].get()}.rsc.", title='Success')
+                             f"{sim_window['-DIR_READOUT-'].get()}/{sim_window['-TITLE-'].get()}.simu.xml.", title='Success')
                 except:
                     Sg.popup('An unknown error occurred. Try checking that you have permission '
                              'to write to the selected directory and you are not trying to write '
@@ -289,10 +294,8 @@ def main():
             sim = make_simulation()
             if sim:
                 try:
-                    if sim_window['-VERBOSE-'].get():
-                        sim.run(sim_window['-DIR_READOUT-'].get() + '/', verbose=True)
-                    else:
-                        sim.run(sim_window['-DIR_READOUT-'].get() + '/', verbose=False)
+                    sim.run(sim_window['-DIR_READOUT-'].get(), verbose=sim_window['-VERBOSE-'].get())
+                    xt.write_xml(sim_window['-DIR_READOUT-'].get(), sim)
                     Sg.popup(f"Success. Simulation saved to {sim_window['-DIR_READOUT-'].get()}.", title='Success')
                 except:
                     Sg.popup('An unknown error occurred. Try checking that you have permission '
