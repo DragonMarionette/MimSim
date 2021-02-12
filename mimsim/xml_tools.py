@@ -9,6 +9,8 @@ import lxml.etree as et
 from mimsim import controller as mc
 from mimsim import mimicry as mim
 
+# TODO: create XML output type for results of a simulation
+
 
 def validate_sim(tree: et.ElementTree):
     sim_schema_src = et.parse('../mimsim/rsc/simulation_specification.xsd')
@@ -114,8 +116,12 @@ def _build_xml(sim: mc.Simulation):
     return et.ElementTree(root)
 
 
-def write_xml(destination_path: str, sim: mc.Simulation):  # TODO: add option for different title
+def write_xml(destination_path: str, sim: mc.Simulation, title=None):
     if not destination_path or destination_path[-1] != '/':
         destination_path += '/'
+    if title is not None:
+        filename = title
+    else:
+        filename = sim.title
     data_tree = _build_xml(sim)
-    data_tree.write(destination_path + sim.title + '.simu.xml', pretty_print=True)
+    data_tree.write(destination_path + sim.title + '.simu.xml', xml_declaration=True, pretty_print=True)

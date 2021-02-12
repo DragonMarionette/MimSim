@@ -22,8 +22,9 @@ about_info = {
     'repo': 'https://github.com/DragonMarionette/MimSim'
 }
 
-# TODO: add a window to signify that an operation is processing
-# TODO: limit encounters, or advise that they be limited
+# TODO: add option for file name different from simulation title
+# TODO: add options for different output types: XML vs CSV, make simu description optional
+# TODO: add option for graph of prey populations over time under certain circumstances (an other analysis tools?)
 
 HEADER_FONT = ('Segoe UI Semilight', 14)
 BODY_FONT = ('Segoe UI', 10)
@@ -53,7 +54,7 @@ def main():
                      title='Alert')
         elif sim_window['-DIR_READOUT-'].get() in ['', 'No directory selected']:
             Sg.popup('No output directory selected. Please select an output directory before running the simulation.',
-                     title='Alert')
+                     title='Alert')  # TODO: allow user to choose directory late
             return False
         else:
             xml_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.simu.xml')
@@ -167,7 +168,8 @@ def main():
                 try:
                     xt.write_xml(sim_window['-DIR_READOUT-'].get(), sim)
                     Sg.popup(f"Success. Simulation parameters exported to "
-                             f"{sim_window['-DIR_READOUT-'].get()}/{sim_window['-TITLE-'].get()}.simu.xml.", title='Success')
+                             f"{sim_window['-DIR_READOUT-'].get()}/{sim_window['-TITLE-'].get()}.simu.xml.",
+                             title='Success')
                 except:
                     Sg.popup('An unknown error occurred. Try checking that you have permission '
                              'to write to the selected directory and you are not trying to write '
@@ -294,8 +296,8 @@ def main():
             sim = make_simulation()
             if sim:
                 try:
-                    sim.run(sim_window['-DIR_READOUT-'].get(), verbose=sim_window['-VERBOSE-'].get())
-                    xt.write_xml(sim_window['-DIR_READOUT-'].get(), sim)
+                    verbose = sim_window['-VERBOSE-'].get()
+                    execution_dialog(sim_window['-DIR_READOUT-'].get(), sim, verbose)
                     Sg.popup(f"Success. Simulation saved to {sim_window['-DIR_READOUT-'].get()}.", title='Success')
                 except:
                     Sg.popup('An unknown error occurred. Try checking that you have permission '
@@ -342,9 +344,11 @@ def make_meta_tab():
          Sg.Input(key='-REPETITIONS-', size=field_size,
                   tooltip='Number of independent trials to simulate')],
         [Sg.Text(text='Number of encounters:', size=text_size, justification='r',
-                 tooltip='Number of predator-prey encounters to simulate per generation'),
+                 tooltip='Number of predator-prey encounters to simulate per generation.\n'
+                         'Advised to keep this below 10000 for multi-generation simulations'),
          Sg.Input(key='-ENCOUNTERS-', size=(19, 1),
-                  tooltip='Number of predator-prey encounters to simulate per generation')],
+                  tooltip='Number of predator-prey encounters to simulate per generation.\n'
+                          'Advised to keep this below 10000 for multi-generation simulations')],
         [Sg.Text(text='Number of generations:', size=text_size, justification='r',
                  tooltip='Number of generations to simulate'),
          Sg.Input(key='-GENERATIONS-', size=field_size,
@@ -478,16 +482,16 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None, pred_ct_in=None):
         [Sg.Text(text='Appetite:', size=text_size,
                  tooltip='Maximum amount of prey to eat before ceasing to pursue further prey items.'
                          'Leave blank for maximum possible appetite.'),
-         Sg.Input(key='app', default_text=pred_obj_in[0].app if edit else '', size=field_size,
+         Sg.Input(key='app', default_text=pred_obj_in.app if edit else '', size=field_size,
                   tooltip='Maximum amount of prey to eat before ceasing to pursue further prey items.'
                           'Leave blank for maximum possible appetite.')],
         [Sg.Text(text='Memory:', size=text_size,
                  tooltip='How many past experiences with a given phenotype contribute to the '
                          'predator\'s preferences. Leave blank for maximum possible memory.'),
-         Sg.Input(key='mem', default_text=pred_obj_in[0].mem if edit else '', size=field_size,
+         Sg.Input(key='mem', default_text=pred_obj_in.mem if edit else '', size=field_size,
                   tooltip='How many past experiences with a given phenotype contribute to the predator\'s '
                           'preferences. Leave blank for maximum possible memory.')],
-        [Sg.Checkbox(text='Insatiable', key='insatiable', default=pred_obj_in[0].insatiable if edit else True,
+        [Sg.Checkbox(text='Insatiable', key='insatiable', default=pred_obj_in.insatiable if edit else True,
                      tooltip='When checked, predator remains equally likely to pursue a given prey item regardless '
                              'how much appetite it has left. Predator will still stop eating once totally full.'), ],
         [Sg.Button(button_text='Use this predator species', key='-ADD_PRED-', size=(4 * BUTTON_W, 1),
@@ -523,6 +527,29 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None, pred_ct_in=None):
                                      insatiable=pred_window['insatiable'].get()),
                         int(pred_window['popu'].get())
                         )
+
+
+def execution_dialog(directory, sim, verbose):
+    progress_text = Sg.Text('Running simulation... 0% complete', justification='c')
+    progress_bar = Sg.ProgressBar(100, orientation='h', size=(60, 48))
+    # cancel_button = Sg.Button('Cancel', key='-CANCEL_EXEC-', size=(BUTTON_W, 1))
+    layout = [
+        [progress_text],
+        [Sg.Text()],
+        [progress_bar],
+        [Sg.Text()],
+        # [cancel_button]
+    ]
+    exec_window = Sg.Window('Running', layout, element_justification='c', modal=True, finalize=True, disable_close=True)
+    total_rows = sim.repetitions * ((sim.generations + int(sim.repopulate)) if verbose else 1)
+    row_count = 0
+    for _ in sim.run(directory, verbose=verbose):
+        row_count += 1
+        progress = int(100*row_count/total_rows)
+        progress_bar.update(progress)
+        progress_text.update(f'Running simulation... {progress}% complete')
+    xt.write_xml(directory, sim)
+    exec_window.close()
 
 
 def about():

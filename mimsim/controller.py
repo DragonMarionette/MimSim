@@ -106,7 +106,8 @@ class Simulation:
                                                              self.generations, repopulate=self.repopulate)
                     trial_rows = [(sole_prey_row, sole_pred_row, self.generations + 1)]
 
-                for prey_out, _, gen in trial_rows:
+                for prey_out, pred_out, gen in trial_rows:
+                    yield prey_out, pred_out, gen
                     this_row = {species + ' popu': prey_out.popu(species) for species in prey_names}
                     this_row.update(self.cols_extra)
                     if verbose:
