@@ -9,5 +9,5 @@ then exports the simulation's parameters to a new Simulation XML.
 from mimsim import xml_tools as xt
 
 sim = xt.load_sim('simple_example.simu.xml')
-xt.write_xml('../ExampleExperiments/output/simple_example/', sim)
+xt.write_desc('../ExampleExperiments/output/simple_example/', sim)
 sim.run('../ExampleExperiments/output/simple_example/', verbose=True)

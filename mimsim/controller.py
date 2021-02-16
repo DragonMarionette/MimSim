@@ -6,6 +6,11 @@ from typing import Iterable
 # imports from this package
 import mimsim.mimicry as mim
 
+CSV = '.csv'
+XML = '.simu.xml'
+NONE = 'none'
+
+
 # TODO: optimize using Numba or Cython or something
 
 
@@ -33,7 +38,6 @@ def one_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool,
 # Returns only the last generation of a multi-generation trial
 def multi_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool, number_of_encounters: int,
               generations: int = 1, repopulate: bool = False) -> tuple[mim.PreyPool, mim.PredatorPool]:
-
     prey_pool_current = deepcopy(prey_in)
     pred_pool_current = deepcopy(pred_in)
 
@@ -51,7 +55,6 @@ def multi_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool, number_of_encoun
 # Iterable over all the generations of a multi-generation trial
 def all_gens(prey_in: mim.PreyPool, pred_in: mim.PredatorPool, number_of_encounters: int, generations: int = 1,
              repopulate: bool = False) -> Iterable[tuple[mim.PreyPool, mim.PredatorPool, int]]:
-
     prey_pool_current = deepcopy(prey_in)
     pred_pool_current = deepcopy(pred_in)
 
@@ -88,31 +91,44 @@ class Simulation:
     def __str__(self):
         return f'<Simulation "{self.title}">'
 
-    def run(self, file_destination: str, verbose: bool = False):
+    def run(self, file_destination: str, verbose: bool = False, output: str = CSV, alt_title: str = None):
         if not file_destination or file_destination[-1] != '/':
             file_destination += '/'
+        filename = file_destination + (alt_title if alt_title else self.title)
+        if output == CSV:
+            return self._run_csv(filename, verbose=verbose)
+        elif output == XML:
+            import mimsim.xml_tools as xt
+            return xt.write_results(self, filename, verbose=verbose)
+        elif output == NONE:
+            return ((prey_out, pred_out, gen) for trial, gen, prey_out, pred_out in self.run_raw(verbose=verbose))
+
+    def run_raw(self, verbose=False):
+        if verbose:
+            for trial in range(1, self.repetitions + 1):
+                for prey_out, pred_out, gen in all_gens(self.prey_pool, self.pred_pool, self.encounters,
+                                                        self.generations, repopulate=self.repopulate):
+                    yield trial, gen, prey_out, pred_out
+        else:
+            for trial in range(1, self.repetitions + 1):
+                prey_out, pred_out = multi_gen(self.prey_pool, self.pred_pool, self.encounters,
+                                               self.generations, repopulate=self.repopulate)
+                yield trial, 1, prey_out, pred_out
+
+    def _run_csv(self, filename: str, verbose: bool = False):
         prey_names = self.prey_pool.names()
-        headers = (['trial', 'generation'] * verbose)\
+        headers = (['trial', 'generation'] * verbose) \
                   + [species + ' popu' for species in prey_names] + list(self.cols_extra)
-        with open(file_destination + self.title + '.csv', 'w', newline='') as data:
+        with open(filename + '.csv', 'w', newline='') as data:
             writer = csv.DictWriter(data, fieldnames=headers)
             writer.writeheader()
-            for trial in range(1, self.repetitions + 1):
+            trial_rows = self.run_raw(verbose=verbose)
+            for trial, gen, prey_out, pred_out in trial_rows:
+                yield prey_out, pred_out, gen
+                this_row = {species + ' popu': prey_out.popu(species) for species in prey_names}
                 if verbose:
-                    trial_rows = all_gens(self.prey_pool, self.pred_pool, self.encounters,
-                                          self.generations, repopulate=self.repopulate)
-                else:
-                    sole_prey_row, sole_pred_row = multi_gen(self.prey_pool, self.pred_pool, self.encounters,
-                                                             self.generations, repopulate=self.repopulate)
-                    trial_rows = [(sole_prey_row, sole_pred_row, self.generations + 1)]
-
-                for prey_out, pred_out, gen in trial_rows:
-                    yield prey_out, pred_out, gen
-                    this_row = {species + ' popu': prey_out.popu(species) for species in prey_names}
-                    this_row.update(self.cols_extra)
-                    if verbose:
-                        this_row.update({'trial': trial, 'generation': gen})
-                    writer.writerow(this_row)
+                    this_row.update({'trial': trial, 'generation': gen})
+                writer.writerow(this_row)
 
     @staticmethod
     def run_all(file_destination: str, simulations: list, verbose: bool = False, make_xml: bool = True):

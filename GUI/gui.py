@@ -16,14 +16,12 @@ about_info = {
     'name': 'Mimicry Simulator (Beta)',
     'author': 'Dan Strauss (DragonMarionette)',
     'contributors': ['Emily Louden (deer-prudence)'],  # If you help, add yourself to this list!
-    'version': '0.1.0',
-    'date': '8 Feb. 2021',
+    'version': '0.2.0',
+    'date': '15 Feb. 2021',
     'license': 'Apache 2.0',
     'repo': 'https://github.com/DragonMarionette/MimSim'
 }
 
-# TODO: add option for file name different from simulation title
-# TODO: add options for different output types: XML vs CSV, make simu description optional
 # TODO: add option for graph of prey populations over time under certain circumstances (an other analysis tools?)
 
 HEADER_FONT = ('Segoe UI Semilight', 14)
@@ -33,7 +31,7 @@ PREY_PRED_LISTBOX_SIZE = (56, 5)
 
 
 def main():
-    def make_simulation():  # Return mimicry_controller.Simulation object initialized with the user's parameters
+    def make_simulation(for_export=False):  # Return mc.Simulation object initialized with the user's parameters
         if sim_window['-TITLE-'].get() == '':  # input validation checks
             Sg.popup('Simulation title cannot be blank. Please enter a title.', title='Alert')
             return False
@@ -49,44 +47,38 @@ def main():
         elif not prey_pool.popu():
             Sg.popup('No prey to simulate. Please add at least one species under the "Prey species" tab.',
                      title='Alert')
+            return False
         elif not pred_pool.popu():
             Sg.popup('No predators to simulate. Please add at least one species under the "predator species" tab.',
                      title='Alert')
-        elif sim_window['-DIR_READOUT-'].get() in ['', 'No directory selected']:
+            return False
+        elif output_path == '':
             Sg.popup('No output directory selected. Please select an output directory before running the simulation.',
-                     title='Alert')  # TODO: allow user to choose directory late
+                     title='Alert')
+            sim_window['-OUTPUT_PATH-'].click()
             return False
         else:
-            xml_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.simu.xml')
-            csv_exists = pth.exists(sim_window['-DIR_READOUT-'].get() + '/' + sim_window['-TITLE-'].get() + '.csv')
-            if xml_exists and csv_exists:
-                overwrite_alert_string = sim_window['-TITLE-'].get() + '.simu.xml and ' \
-                                         + sim_window['-TITLE-'].get() + '.csv already exist in ' \
-                                         + sim_window['-DIR_READOUT-'].get() \
-                                         + '. This action will overwrite one or both of these files.\n\nProceed anyway?'
-            elif xml_exists:
-                overwrite_alert_string = sim_window['-TITLE-'].get() + '.simu.xml already exists in ' \
-                                         + sim_window['-DIR_READOUT-'].get() \
-                                         + '. This action will overwrite this file.\n\nProceed anyway?'
-            elif csv_exists:
-                overwrite_alert_string = sim_window['-TITLE-'].get() + '.csv already exists in ' \
-                                         + sim_window['-DIR_READOUT-'].get() \
-                                         + '. If you are running a simulation, your results will overwrite that file.' \
-                                           '\n\nProceed anyway?'
-            else:
-                overwrite_alert_string = 'No conflicts in output directory. Ready to proceed?'
-            if not Sg.popup_ok_cancel(overwrite_alert_string, title='Confirm') == 'OK':
-                return False
-            else:
-                return mc.Simulation(
-                    title=sim_window['-TITLE-'].get(),
-                    prey_pool=prey_pool,
-                    pred_pool=pred_pool,
-                    encounters=int(sim_window['-ENCOUNTERS-'].get()),
-                    generations=int(sim_window['-GENERATIONS-'].get()),
-                    repetitions=int(sim_window['-REPETITIONS-'].get()),
-                    repopulate=sim_window['-REPOPULATE-'].get()
-                )
+            xml_exists = pth.exists(output_path)
+            csv_exists = pth.exists(output_folder + output_title + mc.CSV)
+            overwrite_list = []
+            if xml_exists:
+                overwrite_list.append(output_path)
+            if csv_exists and extension == mc.CSV and not for_export:
+                overwrite_list.append(output_folder + output_title + mc.CSV)
+            if overwrite_list:
+                overwrite_alert_string = f"The following file{'s' * (len(overwrite_list) > 1)} will be overwritten:\n" \
+                                         + '\n'.join(overwrite_list) + '\n\n OK to proceed?'
+                if not Sg.popup_ok_cancel(overwrite_alert_string, title='Confirm') == 'OK':
+                    return False
+            return mc.Simulation(
+                title=sim_window['-TITLE-'].get(),
+                prey_pool=prey_pool,
+                pred_pool=pred_pool,
+                encounters=int(sim_window['-ENCOUNTERS-'].get()),
+                generations=int(sim_window['-GENERATIONS-'].get()),
+                repetitions=int(sim_window['-REPETITIONS-'].get()),
+                repopulate=sim_window['-REPOPULATE-'].get()
+            )
 
     def update_prey_list():  # Make prey listbox match prey_dict
         sim_window['-PREY_LIST-'].update(prey_pool.pretty_list())
@@ -132,6 +124,11 @@ def main():
     for field in ['-TITLE-']:
         sim_window[field].expand(expand_x=True, expand_y=False, expand_row=False)
 
+    output_path = ''
+    output_folder = ''
+    output_title = ''
+    extension = mc.CSV
+
     # Loop to listen and handle events
     while True:
         event, values = sim_window.read()
@@ -157,18 +154,21 @@ def main():
                         update_prey_list()
                         pred_pool = sim_in.pred_pool
                         update_pred_list()
+                    except xt.et.XMLSyntaxError:
+                        Sg.popup(f'The file {xml_in} is not a valid simulation file. Please choose another '
+                                 f'or enter simulation parameters by hand.', title='Error')
                     except AssertionError:
                         Sg.popup(f'The file {xml_in} is not a valid simulation file. Please choose another '
                                  f'or enter simulation parameters by hand.', title='Error')
                     except:
                         Sg.popup(f'And unknown error occurred while reading the file {xml_in}.', title='Error')
         elif event == 'Export...':
-            sim = make_simulation()
+            sim = make_simulation(for_export=True)
             if sim:
                 try:
-                    xt.write_xml(sim_window['-DIR_READOUT-'].get(), sim)
+                    xt.write_desc(output_path, sim)
                     Sg.popup(f"Success. Simulation parameters exported to "
-                             f"{sim_window['-DIR_READOUT-'].get()}/{sim_window['-TITLE-'].get()}.simu.xml.",
+                             f"{output_path}.",
                              title='Success')
                 except:
                     Sg.popup('An unknown error occurred. Try checking that you have permission '
@@ -290,15 +290,23 @@ def main():
             enable_pred_buttons(False)
 
         # Execution-related events
-        elif event == '-DIRECTORY-':
-            sim_window['-DIR_READOUT-'].update(value=values['-DIRECTORY-'])
+        elif event == '-OUTPUT_PATH-':
+            output_path = values['-OUTPUT_PATH-']
+            output_folder = '/'.join(output_path.split('/')[:-1]) + '/'
+            output_title = output_path.split('/')[-1][:-9]
+            sim_window['-FILENAME_READOUT-'].update(value=output_path)
+        elif event == mc.XML:
+            extension = mc.XML
+        elif event == mc.CSV:
+            extension = mc.CSV
         elif event == '-RUN-':
-            sim = make_simulation()
+            sim = make_simulation(for_export=False)
             if sim:
                 try:
                     verbose = sim_window['-VERBOSE-'].get()
-                    execution_dialog(sim_window['-DIR_READOUT-'].get(), sim, verbose)
-                    Sg.popup(f"Success. Simulation saved to {sim_window['-DIR_READOUT-'].get()}.", title='Success')
+                    execution_dialog(output_folder, output_title, sim, verbose, extension=extension)
+                    Sg.popup(f"Success. Simulation saved to {output_folder + output_title + extension}.",
+                             title='Success')
                 except:
                     Sg.popup('An unknown error occurred. Try checking that you have permission '
                              'to write to the selected directory and you are not trying to write '
@@ -315,16 +323,19 @@ def make_full_layout():
         [Sg.TabGroup(layout=[[make_meta_tab(), make_prey_tab(), make_pred_tab()]])],
         [Sg.Text()],  # A line of space. using Sg.Text here instead of Sg.Sizer because Sizer height depends on DPI
         [Sg.Text('Execution', font=HEADER_FONT)],
+        [Sg.Text('Output type:')],
+        [Sg.Radio('CSV + descriptive *.simu.xml', 'output_selection', key=mc.CSV, enable_events=True, default=True)],
+        [Sg.Radio('Full results in *.simu.xml', 'output_selection', key=mc.XML, enable_events=True, default=False)],
+        [Sg.HorizontalSeparator()],
         [Sg.Checkbox(key='-VERBOSE-', text='Include all generations in output',
                      tooltip='Output a row for each  generation of each trial; if turned off, only the last '
                              'generation of each trial is used')],
-        [Sg.HorizontalSeparator()],
-        [Sg.Text('Output directory:',
-                 tooltip='Where to save CSV and XML output'),
-         Sg.Text(key='-DIR_READOUT-', text='No directory selected', auto_size_text=False,
+        [Sg.Text('Output destination:',
+                 tooltip='Where to save CSV and/or XML output'),
+         Sg.Text(key='-FILENAME_READOUT-', text='No output location selected', auto_size_text=False,
                  tooltip='Where to save CSV and XML output'), ],
-        [Sg.FolderBrowse(key='-DIRECTORY-', button_text='Change', size=(BUTTON_W, 1), enable_events=True,
-                         tooltip='Change output directory'), ],
+        [Sg.FileSaveAs(key='-OUTPUT_PATH-', button_text='Change', size=(BUTTON_W, 1), enable_events=True,
+                       tooltip='Change output directory', file_types=(('Simulation Files', '*.simu.xml'),)), ],
         [Sg.HorizontalSeparator()],
         [Sg.Button(key='-RUN-', button_text='Run', size=(2 * BUTTON_W, 1),
                    tooltip='Run the simulation')]
@@ -529,7 +540,8 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None, pred_ct_in=None):
                         )
 
 
-def execution_dialog(directory, sim, verbose):
+def execution_dialog(folder, title, sim, verbose, extension):
+    as_csv = extension == mc.CSV
     progress_text = Sg.Text('Running simulation... 0% complete', justification='c')
     progress_bar = Sg.ProgressBar(100, orientation='h', size=(60, 48))
     # cancel_button = Sg.Button('Cancel', key='-CANCEL_EXEC-', size=(BUTTON_W, 1))
@@ -543,12 +555,13 @@ def execution_dialog(directory, sim, verbose):
     exec_window = Sg.Window('Running', layout, element_justification='c', modal=True, finalize=True, disable_close=True)
     total_rows = sim.repetitions * ((sim.generations + int(sim.repopulate)) if verbose else 1)
     row_count = 0
-    for _ in sim.run(directory, verbose=verbose):
+    for _ in sim.run(folder, alt_title=title, verbose=verbose, output=mc.CSV if as_csv else mc.XML):
         row_count += 1
         progress = int(100*row_count/total_rows)
         progress_bar.update(progress)
         progress_text.update(f'Running simulation... {progress}% complete')
-    xt.write_xml(directory, sim)
+    if as_csv:
+        xt.write_desc(folder, sim, alt_title=title)
     exec_window.close()
 
 
