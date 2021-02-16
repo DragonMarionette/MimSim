@@ -92,6 +92,10 @@ class Simulation:
         return f'<Simulation "{self.title}">'
 
     def run(self, file_destination: str, verbose: bool = False, output: str = CSV, alt_title: str = None):
+        for _ in self.iter_run(file_destination, verbose, output=output, alt_title=alt_title):
+            pass
+
+    def iter_run(self, file_destination: str, verbose: bool = False, output: str = CSV, alt_title: str = None):
         if not file_destination or file_destination[-1] != '/':
             file_destination += '/'
         filename = file_destination + (alt_title if alt_title else self.title)
@@ -134,4 +138,4 @@ class Simulation:
     def run_all(file_destination: str, simulations: list, verbose: bool = False, make_xml: bool = True):
         for sim in simulations:
             print(f'Running simulation {sim.title}...')
-            sim.run(file_destination, verbose=verbose, make_xml=make_xml)
+            sim.iter_run(file_destination, verbose=verbose)

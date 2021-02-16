@@ -555,7 +555,7 @@ def execution_dialog(folder, title, sim, verbose, extension):
     exec_window = Sg.Window('Running', layout, element_justification='c', modal=True, finalize=True, disable_close=True)
     total_rows = sim.repetitions * ((sim.generations + int(sim.repopulate)) if verbose else 1)
     row_count = 0
-    for _ in sim.run(folder, alt_title=title, verbose=verbose, output=mc.CSV if as_csv else mc.XML):
+    for _ in sim.iter_run(folder, alt_title=title, verbose=verbose, output=mc.CSV if as_csv else mc.XML):
         row_count += 1
         progress = int(100*row_count/total_rows)
         progress_bar.update(progress)
