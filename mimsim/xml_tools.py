@@ -1,6 +1,13 @@
 """
-write_xml(path, sim) -> None
-load_sim(file_path, as_dict=False) -> mc.Simulation
+Utilities for reading/writing simulations and their results from/to *.simu.xml files
+
+validate_sim(tree) -> bool
+load_prey_pool(file_path_in) -> mim.PreyPool
+load_pred_pool(file_path_in) -> mim.PredatorPool
+load_sim(file_path_in) -> mc.Simulation
+write_desc(path, sim) -> None
+write_results(sim, filename, verbose=False) -> None
+write
 """
 
 # builtin or external imports
@@ -9,13 +16,22 @@ import lxml.etree as et
 from mimsim import controller as mc
 from mimsim import mimicry as mim
 
-# TODO: create XML output type for results of a simulation
 
+def validate_sim(tree: et.ElementTree, allow_desc: bool = True, allow_output: bool = True) -> bool:
+    desc_schema_src = et.parse('../mimsim/rsc/desc_specification.xsd')
+    desc_schema = et.XMLSchema(desc_schema_src)
+    desc_valid = desc_schema.validate(tree)
 
-def validate_sim(tree: et.ElementTree):
-    sim_schema_src = et.parse('../mimsim/rsc/simulation_specification.xsd')
-    sim_schema = et.XMLSchema(sim_schema_src)
-    sim_schema.assertValid(tree)
+    output_schema_src = et.parse('../mimsim/rsc/output_specification.xsd')
+    output_schema = et.XMLSchema(output_schema_src)
+    output_valid = output_schema.validate(tree)
+
+    if not allow_desc:
+        assert not desc_valid, 'File is a valid simulation description file; forbidden by flag desc_ok=False'
+    if not allow_output:
+        assert not output_valid, 'File is a valid simulation output file; forbidden by flag output_ok=False'
+    assert desc_valid or output_valid, "File is not a valid simulation"
+
     return True
 
 
@@ -84,7 +100,7 @@ def load_sim(file_path_in: str) -> mc.Simulation:
     )
 
 
-def _build_xml(sim: mc.Simulation):
+def _build_desc(sim: mc.Simulation) -> et.ElementTree():
     root = et.Element('simulation')
 
     params = et.SubElement(root, 'params')
@@ -116,12 +132,55 @@ def _build_xml(sim: mc.Simulation):
     return et.ElementTree(root)
 
 
-def write_xml(destination_path: str, sim: mc.Simulation, title=None):
+def write_desc(destination_path: str, sim: mc.Simulation, alt_title=None):
     if not destination_path or destination_path[-1] != '/':
         destination_path += '/'
-    if title is not None:
-        filename = title
-    else:
-        filename = sim.title
-    data_tree = _build_xml(sim)
-    data_tree.write(destination_path + sim.title + '.simu.xml', xml_declaration=True, pretty_print=True)
+    filename = destination_path + (sim.title if alt_title is None else alt_title)
+    data_tree = _build_desc(sim)
+    data_tree.write(filename + '.simu.xml', xml_declaration=True, pretty_print=True)
+
+
+def write_results(sim: mc.Simulation, filename: str, verbose: bool = False):
+    sim_tree = _build_desc(sim)
+    root = sim_tree.getroot()
+
+    prey_names = sim.prey_pool.names()
+    prey_root = root.find('prey_pool')
+    # prey_result_roots = {name: et.SubElement(prey_root.find(name), 'results') for name in prey_names}
+    prey_result_roots = dict()
+    for prey_species_root in prey_root.findall('prey_spec'):
+        spec_name = prey_species_root.findtext('spec_name')
+        prey_result_roots[spec_name] = et.SubElement(prey_species_root, 'results')
+
+    pred_names = sim.pred_pool.names()
+    pred_root = root.find('pred_pool')
+    # pred_result_roots = {name: et.SubElement(pred_root.find(name), 'results') for name in pred_names}
+    pred_result_roots = dict()
+    for pred_species_root in pred_root.findall('pred_spec'):
+        spec_name = pred_species_root.findtext('spec_name')
+        pred_result_roots[spec_name] = et.SubElement(pred_species_root, 'results')
+
+    last_trial = -1
+    for trial, gen, prey_out, pred_out in (sim.run_raw(verbose=verbose)):
+        if trial > last_trial:
+            last_trial = trial
+            prey_trial_nodes = {name: et.SubElement(prey_result_roots[name], 'trial') for name in prey_names}
+            for node in prey_trial_nodes.values():
+                et.SubElement(node, 'trial_number').text = str(trial)
+            pred_trial_nodes = {name: et.SubElement(pred_result_roots[name], 'trial') for name in pred_names}
+            for node in pred_trial_nodes.values():
+                et.SubElement(node, 'trial_number').text = str(trial)
+
+        for prey_species in prey_names:
+            this_gen_node = et.SubElement(prey_trial_nodes[prey_species], 'generation')
+            et.SubElement(this_gen_node, 'generation_number').text = str(gen)
+            et.SubElement(this_gen_node, 'population').text = str(prey_out.popu(prey_species))
+
+        for pred_species in pred_names:
+            this_gen_node = et.SubElement(pred_trial_nodes[pred_species], 'generation')
+            et.SubElement(this_gen_node, 'generation_number').text = str(gen)
+            et.SubElement(this_gen_node, 'population_hungry').text = str(pred_out.popu(pred_species, hungry_only=True))
+
+        yield prey_out, pred_out, gen
+
+    sim_tree.write(filename + '.simu.xml', xml_declaration=True, pretty_print=True)

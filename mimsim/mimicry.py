@@ -193,7 +193,7 @@ class Predator:
     def encounter(self, prey_item: Prey) -> bool:  # eat prey or decide not to
         if not self.hungry():
             return False
-#  TODO: figure out why pursuit chance is getting lower after the first generation
+
         pursuit_chance = 1  # chance of encounter
         pursuit_chance *= (1 - prey_item.camo)  # *(chance that prey is seen)
         pursuit_chance *= self.get_pref(prey_item.phen)  # *(chance that prey is sufficiently appetizing)
