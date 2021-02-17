@@ -16,7 +16,7 @@ about_info = {
     'name': 'Mimicry Simulator (Beta)',
     'author': 'Dan Strauss (DragonMarionette)',
     'contributors': ['Emily Louden (deer-prudence)'],  # If you help, add yourself to this list!
-    'version': '0.2.0',
+    'version': '0.2.1',
     'date': '15 Feb. 2021',
     'license': 'Apache 2.0',
     'repo': 'https://github.com/DragonMarionette/MimSim'
@@ -120,6 +120,7 @@ def main():
 
     sim_window = Sg.Window(title='Mimicry Simulator', layout=layout, finalize=True)
     Sg.set_options(button_element_size=(BUTTON_W, 1), slider_orientation='h', use_ttk_buttons=True, font=BODY_FONT)
+
     # include ['-ENCOUNTERS-', '-GENERATIONS-', '-REPETITIONS-'] below to extend all to full width
     for field in ['-TITLE-']:
         sim_window[field].expand(expand_x=True, expand_y=False, expand_row=False)
@@ -166,7 +167,7 @@ def main():
             sim = make_simulation(for_export=True)
             if sim:
                 try:
-                    xt.write_desc(output_path, sim)
+                    xt.write_desc(sim, output_path)
                     Sg.popup(f"Success. Simulation parameters exported to "
                              f"{output_path}.",
                              title='Success')
@@ -561,7 +562,7 @@ def execution_dialog(folder, title, sim, verbose, extension):
         progress_bar.update(progress)
         progress_text.update(f'Running simulation... {progress}% complete')
     if as_csv:
-        xt.write_desc(folder, sim, alt_title=title)
+        xt.write_desc(sim, folder, alt_title=title)
     exec_window.close()
 
 

@@ -19,7 +19,7 @@ from copy import copy, deepcopy
 # TODO: Allow partial phenotype resemblance
 
 
-# Prey object represents a species of prey
+# Prey object representing a species of prey
 class Prey:
     def __init__(self, phen: str = None, camo: float = None, pal: float = None, size: float = None, popu: int = None):
         self.phen = set_with_default(phen, '', 'str')
@@ -47,7 +47,7 @@ class Prey:
         return '; '.join(kv_pairs)
 
 
-# PreyPool object represents all of the prey in one ecosystem
+# PreyPool object representing all of the prey in one ecosystem
 class PreyPool:
     def __init__(self):
         self._species_names = []  # list of species names only. Always sorted by the end of any method
@@ -160,7 +160,7 @@ class PreyPool:
         return [name + ': ' + str(obj) for name, obj in self]
 
 
-# Predator object represents an individual predator, which can feed on any Prey
+# Predator object representing an individual predator, which can feed on any Prey
 class Predator:
     def __init__(self, prey_types: PreyPool = None, app: int = None, mem: int = None, insatiable: bool = None):
         self.prefs = {}  # (phenotype: [experiences]) pairs, where an experience ranges from 0 to 1
@@ -246,7 +246,7 @@ class Predator:
         self.prey_eaten = 0
 
 
-# PreyPool object represents all of the predators in one ecosystem
+# PredatorPool object representing all of the predators in one ecosystem
 class PredatorPool:
     def __init__(self):
         self._species_names = []  # list of species names only. Always sorted by the end of any method

@@ -7,7 +7,6 @@ load_pred_pool(file_path_in) -> mim.PredatorPool
 load_sim(file_path_in) -> mc.Simulation
 write_desc(path, sim) -> None
 write_results(sim, filename, verbose=False) -> None
-write
 """
 
 # builtin or external imports
@@ -17,6 +16,7 @@ from mimsim import controller as mc
 from mimsim import mimicry as mim
 
 
+# return true if tree is a valid simulation, otherwise raise AssertionError
 def validate_sim(tree: et.ElementTree, allow_desc: bool = True, allow_output: bool = True) -> bool:
     desc_schema_src = et.parse('../mimsim/rsc/desc_specification.xsd')
     desc_schema = et.XMLSchema(desc_schema_src)
@@ -52,6 +52,7 @@ def _prey_from_root(root: et.Element) -> mim.PreyPool:
     return prey_pool
 
 
+# return the prey pool described in a given .simu.xml file
 def load_prey_pool(file_path_in: str) -> mim.PreyPool:
     sim_tree = et.parse(file_path_in)
     validate_sim(sim_tree)
@@ -75,6 +76,7 @@ def _pred_from_root(root: et.Element) -> mim.PredatorPool:
     return pred_pool
 
 
+# return the predator pool described in a given .simu.xml file
 def load_pred_pool(file_path_in: str) -> mim.PredatorPool:
     sim_tree = et.parse(file_path_in)
     validate_sim(sim_tree)
@@ -82,6 +84,7 @@ def load_pred_pool(file_path_in: str) -> mim.PredatorPool:
     return _pred_from_root(root)
 
 
+# return the Simulation described in a given .simu.xml file
 def load_sim(file_path_in: str) -> mc.Simulation:
     sim_tree = et.parse(file_path_in)
     validate_sim(sim_tree)
@@ -132,21 +135,23 @@ def _build_desc(sim: mc.Simulation) -> et.ElementTree():
     return et.ElementTree(root)
 
 
-def write_desc(destination_path: str, sim: mc.Simulation, alt_title=None):
-    if not destination_path or destination_path[-1] != '/':
-        destination_path += '/'
-    filename = destination_path + (sim.title if alt_title is None else alt_title)
+# write description of sim to the specified .simu.xml file
+def write_desc(sim: mc.Simulation, destination_folder: str, alt_title=None):
+    if not destination_folder or destination_folder[-1] != '/':
+        destination_folder += '/'
+    filename = destination_folder + (sim.title if alt_title is None else alt_title)
     data_tree = _build_desc(sim)
     data_tree.write(filename + '.simu.xml', xml_declaration=True, pretty_print=True)
 
 
+# write description and results of sim to the specified .simu.xml file, yielding each generation
+# not recommended to use; prefer the wrapper sim.iter_run(..., output=controller.XML)
 def write_results(sim: mc.Simulation, filename: str, verbose: bool = False):
     sim_tree = _build_desc(sim)
     root = sim_tree.getroot()
 
     prey_names = sim.prey_pool.names()
     prey_root = root.find('prey_pool')
-    # prey_result_roots = {name: et.SubElement(prey_root.find(name), 'results') for name in prey_names}
     prey_result_roots = dict()
     for prey_species_root in prey_root.findall('prey_spec'):
         spec_name = prey_species_root.findtext('spec_name')
@@ -154,14 +159,16 @@ def write_results(sim: mc.Simulation, filename: str, verbose: bool = False):
 
     pred_names = sim.pred_pool.names()
     pred_root = root.find('pred_pool')
-    # pred_result_roots = {name: et.SubElement(pred_root.find(name), 'results') for name in pred_names}
     pred_result_roots = dict()
     for pred_species_root in pred_root.findall('pred_spec'):
         spec_name = pred_species_root.findtext('spec_name')
         pred_result_roots[spec_name] = et.SubElement(pred_species_root, 'results')
 
+    prey_trial_nodes = dict()  # These two statements do nothing but avoid a warning
+    pred_trial_nodes = dict()
+
     last_trial = -1
-    for trial, gen, prey_out, pred_out in (sim.run_raw(verbose=verbose)):
+    for trial, gen, prey_out, pred_out in sim.run_raw(verbose=verbose):
         if trial > last_trial:
             last_trial = trial
             prey_trial_nodes = {name: et.SubElement(prey_result_roots[name], 'trial') for name in prey_names}

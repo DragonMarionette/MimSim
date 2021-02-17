@@ -14,7 +14,7 @@ NONE = 'none'
 # TODO: optimize using Numba or Cython or something
 
 
-# Runs a single-generation trial and returns results
+# run a single-generation trial and returns results
 def one_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool,
             number_of_encounters: int) -> tuple[mim.PreyPool, mim.PredatorPool]:
     # Simulation setup
@@ -35,7 +35,7 @@ def one_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool,
     return prey_pool, pred_pool
 
 
-# Returns only the last generation of a multi-generation trial
+# return only the last generation of a multi-generation trial
 def multi_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool, number_of_encounters: int,
               generations: int = 1, repopulate: bool = False) -> tuple[mim.PreyPool, mim.PredatorPool]:
     prey_pool_current = deepcopy(prey_in)
@@ -52,7 +52,7 @@ def multi_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool, number_of_encoun
     return prey_pool_current, pred_pool_current
 
 
-# Iterable over all the generations of a multi-generation trial
+# return iterable over all the generations of a multi-generation trial
 def all_gens(prey_in: mim.PreyPool, pred_in: mim.PredatorPool, number_of_encounters: int, generations: int = 1,
              repopulate: bool = False) -> Iterable[tuple[mim.PreyPool, mim.PredatorPool, int]]:
     prey_pool_current = deepcopy(prey_in)
@@ -72,6 +72,7 @@ def all_gens(prey_in: mim.PreyPool, pred_in: mim.PredatorPool, number_of_encount
             pred_pool_current = deepcopy(pred_in)
 
 
+# Simulation object representing the parameters of one simulation but not its output
 class Simulation:
     def __init__(self, title: str = None, prey_pool: mim.PreyPool = mim.PreyPool(),
                  pred_pool: mim.PredatorPool = mim.PredatorPool(), encounters: int = None, generations: int = None,
@@ -91,10 +92,12 @@ class Simulation:
     def __str__(self):
         return f'<Simulation "{self.title}">'
 
+    # run self with no return value
     def run(self, file_destination: str, verbose: bool = False, output: str = CSV, alt_title: str = None):
         for _ in self.iter_run(file_destination, verbose, output=output, alt_title=alt_title):
             pass
 
+    # run self, return an iterator over (prey_pool, pred_pool, gen)
     def iter_run(self, file_destination: str, verbose: bool = False, output: str = CSV, alt_title: str = None):
         if not file_destination or file_destination[-1] != '/':
             file_destination += '/'
@@ -107,6 +110,8 @@ class Simulation:
         elif output == NONE:
             return ((prey_out, pred_out, gen) for trial, gen, prey_out, pred_out in self.run_raw(verbose=verbose))
 
+    # run self without writing to any file
+    # return an iterator over (trial, gen, prey_pool, pred_pool)
     def run_raw(self, verbose=False):
         if verbose:
             for trial in range(1, self.repetitions + 1):
@@ -134,8 +139,8 @@ class Simulation:
                     this_row.update({'trial': trial, 'generation': gen})
                 writer.writerow(this_row)
 
+    # run each Simulation in a list[Simulation] with no return value
     @staticmethod
-    def run_all(file_destination: str, simulations: list, verbose: bool = False, make_xml: bool = True):
+    def run_all(file_destination: str, simulations: list, verbose: bool = False):
         for sim in simulations:
-            print(f'Running simulation {sim.title}...')
-            sim.iter_run(file_destination, verbose=verbose)
+            sim.run(file_destination, verbose=verbose)
