@@ -7,8 +7,9 @@ prey_out, predators_out = mc.one_gen(sim.prey_pool, sim.pred_pool, sim.encounter
 for prey_name, prey_obj in prey_out:
     print(f'Remaining population of species {prey_name} is {prey_obj.popu}.')
 
-for pred_name, pred_list in predators_out:
-    for individual in pred_list:
-        print(f'\nIndividual of {pred_name} has following experiences:')
-        for phen in individual.prefs:
-            print(f'{phen}: {individual.prefs[phen]} giving a preference of {individual.get_pref(phen)}')
+for pred_name, pred_spec in predators_out:
+    for i in range(len(pred_spec)):
+        print(f'\nIndividual of {pred_name} ate {pred_spec[i].prey_eaten} prey, leaving it '
+              f'{"hungry" if pred_spec.hungry(i) else "full"}. It has following experiences:')
+        for phen in pred_spec[i].prefs:
+            print(f'{phen}: {pred_spec[i].prefs[phen]} giving a preference of {pred_spec.get_pref(i, phen)}')
