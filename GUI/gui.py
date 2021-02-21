@@ -7,6 +7,7 @@ import os.path as pth
 import platform
 import PySimpleGUI as Sg
 import webbrowser
+from typing import Union, Tuple
 
 import mimsim.controller as mc
 import mimsim.mimicry as mim
@@ -16,8 +17,8 @@ about_info = {
     'name': 'Mimicry Simulator (Beta)',
     'author': 'Dan Strauss (DragonMarionette)',
     'contributors': ['Emily Louden (deer-prudence)'],  # If you help, add yourself to this list!
-    'version': '0.2.1',
-    'date': '15 Feb. 2021',
+    'version': '0.3.0',
+    'date': '21 Feb. 2021',
     'license': 'Apache 2.0',
     'repo': 'https://github.com/DragonMarionette/MimSim'
 }
@@ -33,28 +34,25 @@ PREY_PRED_LISTBOX_SIZE = (56, 5)
 def main():
     def make_simulation(for_export=False):  # Return mc.Simulation object initialized with the user's parameters
         if sim_window['-TITLE-'].get() == '':  # input validation checks
-            Sg.popup('Simulation title cannot be blank. Please enter a title.', title='Alert')
+            alert('Simulation title cannot be blank. Please enter a title.')
             return False
         elif not valid_positive_int(sim_window['-ENCOUNTERS-'].get()):
-            Sg.popup('Number of encounters must be a positive integer.', title='Alert')
+            alert('Number of encounters must be a positive integer.')
             return False
         elif not valid_positive_int(sim_window['-GENERATIONS-'].get()):
-            Sg.popup('Number of generations must be a positive integer.', title='Alert')
+            alert('Number of generations must be a positive integer.')
             return False
         elif not valid_positive_int(sim_window['-REPETITIONS-'].get()):
-            Sg.popup('Number of trials must be a positive integer.', title='Alert')
+            alert('Number of trials must be a positive integer.')
             return False
         elif not prey_pool.popu():
-            Sg.popup('No prey to simulate. Please add at least one species under the "Prey species" tab.',
-                     title='Alert')
+            alert('No prey to simulate. Please add at least one species under the "Prey species" tab.')
             return False
         elif not pred_pool.popu():
-            Sg.popup('No predators to simulate. Please add at least one species under the "predator species" tab.',
-                     title='Alert')
+            alert('No predators to simulate. Please add at least one species under the "predator species" tab.')
             return False
         elif output_path == '':
-            Sg.popup('No output directory selected. Please select an output directory before running the simulation.',
-                     title='Alert')
+            alert('No output directory selected. Please select an output directory before running the simulation.')
             sim_window['-OUTPUT_PATH-'].click()
             return False
         else:
@@ -137,7 +135,7 @@ def main():
         # File menu events
         if event == 'Import...':
             xml_in = Sg.popup_get_file('Select local simulation XML',
-                                       title='import', file_types=(('Simulation Files', '*.simu.xml'),), )
+                                       title='import', file_types=(('Simulation Files', '*.simu.xml'),))
             if xml_in:
                 if Sg.popup_ok_cancel('This will overwrite any parameters you\'ve already entered. Proceed?',
                                       title='Confirm') == 'OK':
@@ -156,13 +154,13 @@ def main():
                         pred_pool = sim_in.pred_pool
                         update_pred_list()
                     except xt.et.XMLSyntaxError:
-                        Sg.popup(f'The file {xml_in} is not a valid simulation file. Please choose another '
-                                 f'or enter simulation parameters by hand.', title='Error')
+                        error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
+                              f'simulation parameters by hand.')
                     except AssertionError:
-                        Sg.popup(f'The file {xml_in} is not a valid simulation file. Please choose another '
-                                 f'or enter simulation parameters by hand.', title='Error')
+                        error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
+                              f'simulation parameters by hand.')
                     except:
-                        Sg.popup(f'And unknown error occurred while reading the file {xml_in}.', title='Error')
+                        error(f'And unknown error occurred while reading the file {xml_in}.')
         elif event == 'Export...':
             sim = make_simulation(for_export=True)
             if sim:
@@ -172,9 +170,8 @@ def main():
                              f"{output_path}.",
                              title='Success')
                 except:
-                    Sg.popup('An unknown error occurred. Try checking that you have permission '
-                             'to write to the selected directory and you are not trying to write '
-                             'to a file that is open in another application.', title='Error')
+                    error('An unknown error occurred. Try checking that you have permission to write to the selected '
+                          'directory and you are not trying to write to a file that is open in another application.')
         elif event == 'Exit':  # TODO: make this work when the user tries to use native title bar 'X' button
             if Sg.popup_ok_cancel('Are you sure you want to exit? You will lose any unsaved parameters.') == 'OK':
                 sim_window.close()
@@ -194,41 +191,40 @@ def main():
                 enable_prey_buttons(True)
         elif event == '-NEW_PREY-':
             new_prey_name, new_prey_obj = prey_dialogue()
-            while new_prey_name in prey_pool.names():
-                Sg.popup('Name cannot be shared with another prey species.', title='Alert')
+            while new_prey_name in prey_pool.names:
+                alert('Name cannot be shared with another prey species.')
                 new_prey_name, new_prey_obj = prey_dialogue(new_prey_name + '_', new_prey_obj)
             if new_prey_obj is not None:
-                prey_pool.append(new_prey_name, new_prey_obj)
+                prey_pool.add(new_prey_name, new_prey_obj)
                 update_prey_list()
             sim_window['-PREY_LIST-'].set_value([])
             enable_prey_buttons(False)
         elif event == '-EDIT_PREY-':
-            old_prey_name = prey_pool.names()[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
-            new_prey_name, new_prey_obj = prey_dialogue(old_prey_name, prey_pool.species(old_prey_name))
-            while new_prey_name != old_prey_name and new_prey_name in prey_pool.names():
-                Sg.popup('Name cannot be shared with another prey species.', title='Alert')
+            old_prey_name = prey_pool.names[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
+            new_prey_name, new_prey_obj = prey_dialogue(old_prey_name, prey_pool[old_prey_name])
+            while new_prey_name != old_prey_name and new_prey_name in prey_pool.names:
+                alert('Name cannot be shared with another prey species.')
                 new_prey_name, new_prey_obj = prey_dialogue(new_prey_name + '_', new_prey_obj)
             if new_prey_obj is not None:
                 prey_pool.remove(old_prey_name)
-                prey_pool.append(new_prey_name, new_prey_obj)
+                prey_pool.add(new_prey_name, new_prey_obj)
                 update_prey_list()
             sim_window.bring_to_front()
             sim_window['-PREY_LIST-'].set_value([])
             enable_prey_buttons(False)
         elif event == '-DUP_PREY-':
-            prey_to_copy_name = prey_pool.names()[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
-            new_prey_name, new_prey_obj = prey_dialogue(prey_to_copy_name + '_copy',
-                                                        prey_pool.species(prey_to_copy_name))
-            while new_prey_name in prey_pool.names():
-                Sg.popup('Name cannot be shared with another prey species.', title='Alert')
+            prey_to_copy_name = prey_pool.names[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
+            new_prey_name, new_prey_obj = prey_dialogue(prey_to_copy_name + '_copy', prey_pool[prey_to_copy_name])
+            while new_prey_name in prey_pool.names:
+                alert('Name cannot be shared with another prey species.')
                 new_prey_name, new_prey_obj = prey_dialogue(new_prey_name + '_', new_prey_obj)
             if new_prey_obj is not None:
-                prey_pool.append(new_prey_name, new_prey_obj)
+                prey_pool.add(new_prey_name, new_prey_obj)
                 update_prey_list()
             sim_window['-PREY_LIST-'].set_value([])
             enable_prey_buttons(False)
         elif event == '-DEL_PREY-':
-            prey_unwanted_name = prey_pool.names()[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
+            prey_unwanted_name = prey_pool.names[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
             if Sg.popup_ok_cancel(f'Are you sure you want to delete prey species "{prey_unwanted_name}"?',
                                   title='Confirm') == 'OK':
                 prey_pool.remove(prey_unwanted_name)
@@ -244,42 +240,41 @@ def main():
             else:
                 enable_pred_buttons(True)
         elif event == '-NEW_PRED-':
-            new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue()
-            while new_pred_name in pred_pool.names():
-                Sg.popup('Name cannot be shared with another predator species.', title='Alert')
+            new_pred_name, new_pred_obj = pred_dialogue()
+            while new_pred_name in pred_pool.names:
+                alert('Name cannot be shared with another predator species.')
                 new_pred_name, new_pred_obj = pred_dialogue(new_pred_name + '_', new_pred_obj)
             if new_pred_obj is not None:
-                pred_pool.append(new_pred_name, new_pred_obj)
+                pred_pool.add(new_pred_name, new_pred_obj)
                 update_pred_list()
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
         elif event == '-EDIT_PRED-':
-            old_pred_name = pred_pool.names()[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
-            new_pred_name, new_pred_obj = pred_dialogue(old_pred_name, pred_pool.species(old_pred_name))
-            while new_pred_name != old_pred_name and new_pred_name in pred_pool.names():
-                Sg.popup('Name cannot be shared with another predator species.', title='Alert')
+            old_pred_name = pred_pool.names[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
+            new_pred_name, new_pred_obj = pred_dialogue(old_pred_name, pred_pool[old_pred_name])
+            while new_pred_name != old_pred_name and new_pred_name in pred_pool.names:
+                alert('Name cannot be shared with another predator species.')
                 new_pred_name, new_pred_obj = pred_dialogue(new_pred_name + '_', new_pred_obj)
             if new_pred_obj is not None:
                 pred_pool.remove(old_pred_name)
-                pred_pool.append(new_pred_name, new_pred_obj)
+                pred_pool.add(new_pred_name, new_pred_obj)
                 update_pred_list()
             sim_window.bring_to_front()
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
         elif event == '-DUP_PRED-':
-            pred_to_copy_name = pred_pool.names()[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
-            new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue(pred_to_copy_name + '_copy',
-                                                                     pred_pool.species(pred_to_copy_name))
-            while new_pred_name in pred_pool.names():
-                Sg.popup('Name cannot be shared with another predator species.', title='Alert')
+            pred_to_copy_name = pred_pool.names[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
+            new_pred_name, new_pred_obj = pred_dialogue(pred_to_copy_name + '_copy', pred_pool[pred_to_copy_name])
+            while new_pred_name in pred_pool.names:
+                alert('Name cannot be shared with another predator species.')
                 new_pred_name, new_pred_obj = pred_dialogue(new_pred_name + '_', new_pred_obj)
             if new_pred_obj is not None:
-                pred_pool.append(new_pred_name, new_pred_obj)
+                pred_pool.add(new_pred_name, new_pred_obj)
                 update_pred_list()
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
         elif event == '-DEL_PRED-':
-            pred_unwanted_name = pred_pool.names()[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
+            pred_unwanted_name = pred_pool.names[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
             if Sg.popup_ok_cancel(f'Are you sure you want to delete predator species "{pred_unwanted_name}"?',
                                   title='Confirm') == 'OK':
                 pred_pool.remove(pred_unwanted_name)
@@ -300,15 +295,8 @@ def main():
         elif event == '-RUN-':
             sim = make_simulation(for_export=False)
             if sim:
-                # try:
                 verbose = sim_window['-VERBOSE-'].get()
                 execution_dialog(output_folder, output_title, sim, verbose, extension=extension)
-                Sg.popup(f"Success. Simulation saved to {output_folder + output_title + extension}.",
-                         title='Success')
-                # except:
-                #     Sg.popup('An unknown error occurred. Try checking that you have permission '
-                #              'to write to the selected directory and you are not trying to write '
-                #              'to a file that is open in another application.', title='Error')
 
         elif event == Sg.WIN_CLOSED:
             break
@@ -402,7 +390,7 @@ def make_pred_tab():
     return Sg.Tab('Predator species', layout)
 
 
-def prey_dialogue(prey_in_name=None, prey_in=None):
+def prey_dialogue(prey_in_name=None, prey_in=None) -> Union[Tuple[str, mim.Prey], Tuple[None, None]]:
     edit = prey_in is not None
     text_size = (12, 1)
     field_size = (25, 1)
@@ -456,11 +444,11 @@ def prey_dialogue(prey_in_name=None, prey_in=None):
         event, values = prey_window.read()
         if event == '-ADD_PREY-':
             if prey_window['spec_name'].get() == '':
-                Sg.popup('Prey name cannot be empty. Please enter a valid name.', title='Alert')
+                alert('Prey name cannot be empty. Please enter a valid name.')
             elif not valid_positive_int(prey_window['popu'].get()):
-                Sg.popup('Prey population must be a positive integer.', title='Alert')
+                alert('Prey population must be a positive integer.')
             elif not valid_positive_float(prey_window['size'].get()):
-                Sg.popup('Prey size must be a positive number.', title='Alert')
+                alert('Prey size must be a positive number.')
             else:  # Valid prey creation/edit
                 prey_window.close()
                 return (prey_window['spec_name'].get(),
@@ -475,7 +463,7 @@ def prey_dialogue(prey_in_name=None, prey_in=None):
             return None, None
 
 
-def pred_dialogue(pred_in_name=None, pred_obj_in=None):
+def pred_dialogue(pred_in_name=None, pred_obj_in=None) -> Union[Tuple[str, mim.PredatorSpecies], Tuple[None, None]]:
     edit = pred_obj_in is not None
     text_size = (12, None)
     field_size = (25, None)
@@ -519,16 +507,16 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None):
             return None, None
         elif event == '-ADD_PRED-':
             if pred_window['spec_name'].get() == '':
-                Sg.popup('Predator name cannot be empty. Please enter a valid name.', title='Alert')
+                alert('Predator name cannot be empty. Please enter a valid name.')
             elif not valid_positive_int(pred_window['popu'].get()):
-                Sg.popup('Population must be a positive integer.', title='Alert')
+                alert('Population must be a positive integer.')
             else:  # Valid predator creation/edit
                 app_valid = valid_positive_int(pred_window['app'].get())
                 mem_valid = valid_positive_int(pred_window['mem'].get())
                 if not (app_valid and mem_valid):
                     # The defaulting described below happens in mimicry.PredatorSpecies.__init__()
-                    Sg.popup(f"{'Appetite' if mem_valid else 'Memory' if app_valid else 'Appetite and memory both'} "
-                             f"defaulted to the maximum possible value.", title='Alert')
+                    alert(f"{'Appetite' if mem_valid else 'Memory' if app_valid else 'Appetite and memory both'} "
+                          f"defaulted to the maximum possible value.")
 
                 pred_window.close()
                 return (pred_window['spec_name'].get(),
@@ -551,17 +539,25 @@ def execution_dialog(folder, title, sim, verbose, extension):
         [Sg.Text()],
         # [cancel_button]
     ]
-    exec_window = Sg.Window('Running', layout, element_justification='c', modal=True, finalize=True, disable_close=True)
+    exec_window = Sg.Window('Running', layout, element_justification='c', modal=True, finalize=True,
+                            disable_close=True)
     total_rows = sim.repetitions * ((sim.generations + int(sim.repopulate)) if verbose else 1)
     row_count = 0
-    for _ in sim.iter_run(folder, alt_title=title, verbose=verbose, output=mc.CSV if as_csv else mc.XML):
-        row_count += 1
-        progress = int(100 * row_count / total_rows)
-        progress_bar.update(progress)
-        progress_text.update(f'Running simulation... {progress}% complete')
-    if as_csv:
-        xt.write_desc(sim, folder, alt_title=title)
-    exec_window.close()
+    try:
+        for _ in sim.iter_run(folder, alt_title=title, verbose=verbose, output=mc.CSV if as_csv else mc.XML):
+            row_count += 1
+            progress = int(100 * row_count / total_rows)
+            progress_bar.update(progress)
+            progress_text.update(f'Running simulation... {progress}% complete')
+        if as_csv:
+            xt.write_desc(sim, folder, alt_title=title)
+        Sg.popup(f"Success. Simulation saved to {folder + title + extension}.",
+                 title='Success')
+    except:
+        error('An unknown error occurred. Try checking that you have permission to write to the selected directory '
+              'and you are not trying to write to a file that is open in another application.')
+    finally:
+        exec_window.close()
 
 
 def about():
@@ -606,6 +602,14 @@ def valid_positive_float(value):
         return float(value) > 0
     except ValueError:
         return False
+
+
+def error(text):
+    return Sg.popup(text, title='Error')
+
+
+def alert(text):
+    return Sg.popup(text, title='Alert')
 
 
 if __name__ == '__main__':
