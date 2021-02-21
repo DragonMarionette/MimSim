@@ -11,6 +11,7 @@ write_results(sim, filename, verbose=False) -> None
 
 # builtin or external imports
 import lxml.etree as et
+from typing import NoReturn, Tuple, Iterable
 # imports from this package
 from mimsim import controller as mc
 from mimsim import mimicry as mim
@@ -39,7 +40,7 @@ def _prey_from_root(root: et.Element) -> mim.PreyPool:
     prey_pool = mim.PreyPool()
     prey_root = root.find('prey_pool')
     for species in prey_root:
-        prey_pool.append(
+        prey_pool.add(
             species.find('spec_name').text,
             mim.Prey(popu=int(species.find('popu').text), phen=species.find('phen').text,
                      size=float(species.find('size').text), camo=float(species.find('camo').text),
@@ -60,7 +61,7 @@ def _pred_from_root(root: et.Element) -> mim.PredatorPool:
     pred_pool = mim.PredatorPool()
     prey_root = root.find('pred_pool')
     for species in prey_root:
-        pred_pool.append(
+        pred_pool.add(
             species.find('spec_name').text,
             mim.PredatorSpecies(
                 app=int(species.find('app').text),
@@ -99,7 +100,7 @@ def load_sim(file_path_in: str) -> mc.Simulation:
     )
 
 
-def _build_desc(sim: mc.Simulation) -> et.ElementTree():
+def _build_desc(sim: mc.Simulation) -> et.ElementTree:
     root = et.Element('simulation')
 
     params = et.SubElement(root, 'params')
@@ -132,7 +133,8 @@ def _build_desc(sim: mc.Simulation) -> et.ElementTree():
 
 
 # write description of sim to the specified .simu.xml file
-def write_desc(sim: mc.Simulation, destination_folder: str, alt_title=None):
+def write_desc(sim: mc.Simulation, destination_folder: str, alt_title=None) \
+        -> NoReturn:
     if not destination_folder or destination_folder[-1] != '/':
         destination_folder += '/'
     filename = destination_folder + (sim.title if alt_title is None else alt_title)
@@ -142,18 +144,19 @@ def write_desc(sim: mc.Simulation, destination_folder: str, alt_title=None):
 
 # write description and results of sim to the specified .simu.xml file, yielding each generation
 # not recommended to use; prefer the wrapper sim.iter_run(..., output=controller.XML)
-def write_results(sim: mc.Simulation, filename: str, verbose: bool = False):
+def write_results(sim: mc.Simulation, filename: str, verbose: bool = False) \
+        -> Iterable[Tuple[mim.PreyPool, mim.PredatorPool, int]]:
     sim_tree = _build_desc(sim)
     root = sim_tree.getroot()
 
-    prey_names = sim.prey_pool.names()
+    prey_names = sim.prey_pool.names
     prey_root = root.find('prey_pool')
     prey_result_roots = dict()
     for prey_species_root in prey_root.findall('prey_spec'):
         spec_name = prey_species_root.findtext('spec_name')
         prey_result_roots[spec_name] = et.SubElement(prey_species_root, 'results')
 
-    pred_names = sim.pred_pool.names()
+    pred_names = sim.pred_pool.names
     pred_root = root.find('pred_pool')
     pred_result_roots = dict()
     for pred_species_root in pred_root.findall('pred_spec'):
