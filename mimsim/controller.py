@@ -25,9 +25,10 @@ def one_gen(prey_in: mim.PreyPool, pred_in: mim.PredatorPool,
     for _ in range(number_of_encounters):
         if prey_pool.popu(surviving_only=True) > 0 and pred_pool.popu(hungry_only=True) > 0:
             prey_selected = prey_pool.select(surviving_only=False)[1]
-            pred_selected = pred_pool.select(hungry_only=False)[1]
-            if prey_selected is not None and pred_selected is not None:
-                if pred_selected.encounter(prey_selected):
+            pred_spec_selected_name, pred_idx = pred_pool.select(hungry_only=False)
+            pred_spec_selected = pred_pool.species(pred_spec_selected_name)
+            if prey_selected is not None and pred_idx is not None:
+                if pred_spec_selected.encounter(pred_idx, prey_selected):
                     prey_selected.popu -= 1
         else:  # no prey left or no hungry predators left
             break
@@ -80,8 +81,8 @@ class Simulation:
         self.title = mim.set_with_default(title, '')
         self.prey_pool = prey_pool
         self.pred_pool = pred_pool
-        for pred_list in self.pred_pool.species_lists():
-            for pred in pred_list:
+        for pred_spec in self.pred_pool.species_objects():
+            for pred in pred_spec:
                 pred.learn_all(self.prey_pool)
         self.encounters = mim.set_with_default(encounters, 1, intended_type='int')
         self.generations = mim.set_with_default(generations, 1, intended_type='int')

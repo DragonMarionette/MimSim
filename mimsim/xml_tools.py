@@ -41,13 +41,9 @@ def _prey_from_root(root: et.Element) -> mim.PreyPool:
     for species in prey_root:
         prey_pool.append(
             species.find('spec_name').text,
-            mim.Prey(
-                popu=int(species.find('popu').text),
-                phen=species.find('phen').text,
-                size=float(species.find('size').text),
-                camo=float(species.find('camo').text),
-                pal=float(species.find('pal').text)
-            )
+            mim.Prey(popu=int(species.find('popu').text), phen=species.find('phen').text,
+                     size=float(species.find('size').text), camo=float(species.find('camo').text),
+                     pal=float(species.find('pal').text))
         )
     return prey_pool
 
@@ -66,12 +62,12 @@ def _pred_from_root(root: et.Element) -> mim.PredatorPool:
     for species in prey_root:
         pred_pool.append(
             species.find('spec_name').text,
-            mim.Predator(
-                app=species.find('app').text,
+            mim.PredatorSpecies(
+                app=int(species.find('app').text),
                 mem=int(species.find('mem').text),
                 insatiable=bool(species.find('insatiable').text in ('true', '1')),
-            ),
-            int(species.find('popu').text)
+                popu=int(species.find('popu').text)
+            )
         )
     return pred_pool
 
@@ -124,10 +120,10 @@ def _build_desc(sim: mc.Simulation) -> et.ElementTree():
         et.SubElement(prey_elem, 'pal').text = str(prey_obj.pal)
 
     pred_pool = et.SubElement(root, 'pred_pool')
-    for pred_name, pred_obj in sim.pred_pool.list_all_reps():
+    for pred_name, pred_obj in sim.pred_pool:
         pred_elem = et.SubElement(pred_pool, 'pred_spec')
         et.SubElement(pred_elem, 'spec_name').text = pred_name
-        et.SubElement(pred_elem, 'popu').text = str(sim.pred_pool.popu(pred_name))
+        et.SubElement(pred_elem, 'popu').text = str(pred_obj.popu)
         et.SubElement(pred_elem, 'app').text = str(pred_obj.app)
         et.SubElement(pred_elem, 'mem').text = str(pred_obj.mem)
         et.SubElement(pred_elem, 'insatiable').text = str(int(pred_obj.insatiable))

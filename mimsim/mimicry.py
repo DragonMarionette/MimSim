@@ -21,7 +21,7 @@ from copy import copy, deepcopy
 
 # Prey object representing a species of prey
 class Prey:
-    def __init__(self, phen: str = None, camo: float = None, pal: float = None, size: float = None, popu: int = None):
+    def __init__(self, popu: int = None, phen: str = None, size: float = None, camo: float = None, pal: float = None):
         self.phen = set_with_default(phen, '', 'str')
         self.camo = set_with_default(camo, 0.0, 'float')
         self.pal = set_with_default(pal, 1.0, 'float')
@@ -161,42 +161,142 @@ class PreyPool:
 
 
 # Predator object representing an individual predator, which can feed on any Prey
-class Predator:
-    def __init__(self, prey_types: PreyPool = None, app: int = None, mem: int = None, insatiable: bool = None):
-        self.prefs = {}  # (phenotype: [experiences]) pairs, where an experience ranges from 0 to 1
-        prey_types = set_with_default(prey_types, PreyPool())
-        self.learn_all(prey_types)
+# class Predator:
+#     def __init__(self, prey_types: PreyPool = None, app: int = None, mem: int = None, insatiable: bool = None):
+#         self.prefs = {}  # (phenotype: [experiences]) pairs, where an experience ranges from 0 to 1
+#         prey_types = set_with_default(prey_types, PreyPool())
+#         self.learn_all(prey_types)
+#
+#         self.app = set_with_default(app, int(sys.maxsize), intended_type='int')
+#         self.prey_eaten = 0
+#
+#         self.mem = set_with_default(mem, int(sys.maxsize), intended_type='int')
+#
+#         self.insatiable = set_with_default(insatiable, False, intended_type='bool')
+#
+#     def __str__(self):
+#         kv_pairs = []
+#         for field in ['app', 'mem', 'insatiable']:
+#             value = vars(self)[field]
+#             if value >= int(sys.maxsize):
+#                 value = 'max'
+#             kv_pairs.append(f'{field}={value}')
+#         return '; '.join(kv_pairs)
+#
+#     def eat(self, prey_item: Prey):
+#         if prey_item.phen not in self.prefs:  # first encounter with phenotype
+#             self.prefs[prey_item.phen] = []
+#
+#         self.update_pref(prey_item.phen, prey_item.pal)
+#         self.prey_eaten += prey_item.size
+#
+#     def encounter(self, prey_item: Prey) -> bool:  # eat prey or decide not to
+#         if not self.hungry():
+#             return False
+#
+#         pursuit_chance = 1  # chance of encounter
+#         pursuit_chance *= (1 - prey_item.camo)  # *(chance that prey is seen)
+#         pursuit_chance *= self.get_pref(prey_item.phen)  # *(chance that prey is sufficiently appetizing)
+#
+#         # if not self.insatiable:
+#         #     size = prey_item.size
+#         #     if size > self.app - self.prey_eaten:
+#         #         size = self.app - self.prey_eaten
+#         #     pursuit_chance *= \
+#         #         size * ((self.app - self.prey_eaten) / self.app ** 2)  # *(chance that prey is sufficiently filling)
+#
+#         # print(pursuit_chance)
+#         if pursuit_chance >= random.random():
+#             self.eat(prey_item)
+#             return True
+#         else:  # decide not to eat
+#             return False
+#
+#     def update_pref(self, phen: str, pal: float):
+#         self.prefs[phen].append(pal)  # add on most recent experience
+#         if len(self.prefs[phen]) > self.mem:  # remove any experiences too old to remember
+#             self.prefs[phen] = self.prefs[phen][-self.mem:]
+#
+#     def get_pref(self, phen: str) -> float:
+#         if phen not in self.prefs:
+#             return 1
+#
+#         experiences = self.prefs[phen]
+#         if not experiences:
+#             return 1
+#         elif 0 in self.prefs[phen]:
+#             return 0
+#         else:
+#             return statistics.geometric_mean(experiences + [experiences[-1]])
+#
+#     def learn_all(self, prey_pool: PreyPool):
+#         for species in prey_pool.species_objects():
+#             if species.phen not in self.prefs:
+#                 self.prefs[species.phen] = []
+#
+#     def pref_max(self) -> float:
+#         return max([self.get_pref(p) for p in self.prefs])
+#
+#     def hungry(self) -> bool:
+#         return self.prey_eaten < self.app
+#
+#     def reset(self):
+#         for phen in self.prefs:
+#             self.prefs[phen] = []
+#         self.prey_eaten = 0
 
-        self.app = set_with_default(app, int(sys.maxsize), intended_type='int')
-        self.prey_eaten = 0
 
-        self.mem = set_with_default(mem, int(sys.maxsize), intended_type='int')
+class PredatorSpecies:
+    class Pred:
+        def __init__(self):
+            self.prefs = {}  # (phenotype: [experiences]) pairs, where an experience ranges from 0 to 1
+            self.prey_eaten = 0
 
-        self.insatiable = set_with_default(insatiable, False, intended_type='bool')
+        def learn_all(self, prey_pool: PreyPool):
+            for species in prey_pool.species_objects():
+                if species.phen not in self.prefs:
+                    self.prefs[species.phen] = []
+
+    def __init__(self, popu, prey_types: PreyPool = None, app: int = None, mem: int = None, insatiable: bool = None):
+        self.popu = popu
+        self.app = app
+        self.mem = mem
+        self.insatiable = insatiable
+        self.rep = self.Pred()
+        if prey_types is not None:
+            self.rep.learn_all(prey_types)
+        self._lst = [deepcopy(self.rep) for _ in range(popu)]
+
+    def __getitem__(self, item: int):
+        return self._lst[item]
+
+    def __len__(self):
+        return len(self._lst)
 
     def __str__(self):
         kv_pairs = []
-        for field in ['app', 'mem', 'insatiable']:
+        for field in ['popu', 'app', 'mem', 'insatiable']:
             value = vars(self)[field]
             if value >= int(sys.maxsize):
                 value = 'max'
             kv_pairs.append(f'{field}={value}')
         return '; '.join(kv_pairs)
 
-    def eat(self, prey_item: Prey):
-        if prey_item.phen not in self.prefs:  # first encounter with phenotype
-            self.prefs[prey_item.phen] = []
+    def eat(self, i: int, prey_item: Prey):
+        pred = self[i]
+        if prey_item.phen not in pred.prefs:  # first encounter with phenotype
+            pred.prefs[prey_item.phen] = []
 
-        self.update_pref(prey_item.phen, prey_item.pal)
-        self.prey_eaten += prey_item.size
+        self.update_pref(i, prey_item)
+        pred.prey_eaten += prey_item.size
 
-    def encounter(self, prey_item: Prey) -> bool:  # eat prey or decide not to
-        if not self.hungry():
+    def encounter(self, i: int, prey_item: Prey) -> bool:  # eat prey or decide not to
+        if not self.hungry(i):
             return False
 
         pursuit_chance = 1  # chance of encounter
         pursuit_chance *= (1 - prey_item.camo)  # *(chance that prey is seen)
-        pursuit_chance *= self.get_pref(prey_item.phen)  # *(chance that prey is sufficiently appetizing)
+        pursuit_chance *= self.get_pref(i, prey_item.phen)  # *(chance that prey is sufficiently appetizing)
 
         # if not self.insatiable:
         #     size = prey_item.size
@@ -207,43 +307,43 @@ class Predator:
 
         # print(pursuit_chance)
         if pursuit_chance >= random.random():
-            self.eat(prey_item)
+            self.eat(i, prey_item)
             return True
         else:  # decide not to eat
             return False
 
-    def update_pref(self, phen: str, pal: float):
-        self.prefs[phen].append(pal)  # add on most recent experience
-        if len(self.prefs[phen]) > self.mem:  # remove any experiences too old to remember
-            self.prefs[phen] = self.prefs[phen][-self.mem:]
+    def update_pref(self, i: int, prey_item: Prey):
+        pred = self[i]
+        phen = prey_item.phen
+        pal = prey_item.pal
+        pred.prefs[phen].append(pal)  # add on most recent experience
+        if len(pred.prefs[phen]) > self.mem:  # remove any experiences too old to remember
+            pred.prefs[phen] = pred.prefs[phen][-self.mem:]
 
-    def get_pref(self, phen: str) -> float:
-        if phen not in self.prefs:
+    def get_pref(self, i: int, phen: str) -> float:
+        pred = self[i]
+        if phen not in pred.prefs:
             return 1
 
-        experiences = self.prefs[phen]
+        experiences = pred.prefs[phen]
         if not experiences:
             return 1
-        elif 0 in self.prefs[phen]:
+        elif 0 in pred.prefs[phen]:
             return 0
         else:
             return statistics.geometric_mean(experiences + [experiences[-1]])
 
-    def learn_all(self, prey_pool: PreyPool):
-        for species in prey_pool.species_objects():
-            if species.phen not in self.prefs:
-                self.prefs[species.phen] = []
+    def pref_max(self, i: int) -> float:
+        return max([self.get_pref(i, ph) for ph in self[i].prefs])
 
-    def pref_max(self) -> float:
-        return max([self.get_pref(p) for p in self.prefs])
-
-    def hungry(self) -> bool:
-        return self.prey_eaten < self.app
+    def hungry(self, i: int) -> bool:
+        return self[i].prey_eaten < self.app
 
     def reset(self):
-        for phen in self.prefs:
-            self.prefs[phen] = []
-        self.prey_eaten = 0
+        for pred in self._lst:
+            for phen in pred.prefs:
+                pred.prefs[phen] = []
+            pred.prey_eaten = 0
 
 
 # PredatorPool object representing all of the predators in one ecosystem
@@ -264,30 +364,16 @@ class PredatorPool:
     def dict(self) -> dict:
         return copy(self._dict)
 
-    def list_all_reps(self) -> list[tuple[str, Predator]]:
-        return [(name, deepcopy(self._dict[name][0])) for name in self._species_names]
-
-    def list_all_lists(self) -> list[tuple[str, list[Predator]]]:
+    def list_all(self) -> list[tuple[str, PredatorSpecies]]:
         return [(name, self._dict[name]) for name in self._species_names]
 
     def names(self) -> list[str]:
         return copy(self._species_names)
 
-    def species_reps(self) -> list[Predator]:
-        return [deepcopy(self._dict[name][0]) for name in self._species_names]
-
-    def species_rep(self, name: str) -> Predator:
-        if not isinstance(name, str):
-            raise TypeError(f'Species name expected to be str. Instead got {type(name)}')
-        elif name not in self._species_names:
-            raise ValueError(f'No species named "{name}"')
-        else:
-            return deepcopy(self._dict[name][0])
-
-    def species_lists(self) -> list[list[Predator]]:
+    def species_objects(self) -> list[PredatorSpecies]:
         return [self._dict[name] for name in self._species_names]
 
-    def species_list(self, name: str) -> list[Predator]:
+    def species(self, name: str) -> PredatorSpecies:
         if not isinstance(name, str):
             raise TypeError(f'Species name expected to be str. Instead got {type(name)}')
         elif name not in self._species_names:
@@ -295,18 +381,16 @@ class PredatorPool:
         else:
             return self._dict[name]
 
-    def append(self, spec_name: str, pred_obj: Predator, count: int) -> bool:
+    def append(self, spec_name: str, pred_spec: PredatorSpecies) -> bool:
         if not isinstance(spec_name, str):
             raise TypeError(f'spec_name must be instance of string. Instead got {type(spec_name)}')
-        elif not isinstance(pred_obj, Predator):
-            raise TypeError(f'prey_obj must be instance of Prey. Instead got {type(pred_obj)}')
-        elif not isinstance(count, int):
-            raise TypeError(f'count must be instance of int. Instead got {type(count)}')
+        elif not isinstance(pred_spec, PredatorSpecies):
+            raise TypeError(f'prey_obj must be instance of Prey. Instead got {type(pred_spec)}')
 
         if spec_name in self._dict:
             return False
         bisect.insort(self._species_names, spec_name)
-        self._dict[spec_name] = [deepcopy(pred_obj) for _ in range(count)]
+        self._dict[spec_name] = deepcopy(pred_spec)
         return True
 
     def remove(self, spec_name: str) -> bool:
@@ -318,9 +402,9 @@ class PredatorPool:
             return True
         return False
 
-    def replace(self, spec_name: str, spec_obj: Predator, count: int):
+    def replace(self, spec_name: str, pred_spec: PredatorSpecies):
         self.remove(spec_name)
-        self.append(spec_name, spec_obj, count)
+        self.append(spec_name, pred_spec)
 
     def clear(self):
         self._species_names = []
@@ -334,7 +418,7 @@ class PredatorPool:
         elif spec_name not in self._species_names:
             return 0
         elif hungry_only:
-            return sum(pred.hungry() for pred in self._dict[spec_name])
+            return sum(self._dict[spec_name].hungry(i) for i in range(len(self._dict[spec_name])))
         else:
             return len(self._dict[spec_name])
 
@@ -344,28 +428,28 @@ class PredatorPool:
         else:
             return self._popu_of(spec_name, hungry_only=hungry_only)
 
-    def select(self, hungry_only: bool = False) -> Union[tuple[str, Predator], tuple[None, None]]:
+    def select(self, hungry_only: bool = False) -> Union[tuple[str, int], tuple[None, None]]:
         available_popu = self.popu(hungry_only=hungry_only)
         if not available_popu:
             return None, None
         idx = random.randrange(available_popu)
-        for species in self.names():
-            if idx < self._popu_of(species, hungry_only=hungry_only):
+        for species_name in self.names():
+            if idx < self._popu_of(species_name, hungry_only=hungry_only):
                 if hungry_only:
-                    return species, [pred for pred in self._dict[species] if pred.hungry()][idx]
+                    return species_name, [i for i in range(self._popu_of(species_name))
+                                          if self._dict[species_name].hungry(i)][idx]
                 else:
-                    return species, self._dict[species][idx]
+                    return species_name, idx
             else:
-                idx -= self._popu_of(species, hungry_only=hungry_only)
+                idx -= self._popu_of(species_name, hungry_only=hungry_only)
         return None, None
 
     def pretty_list(self):
-        return [name + ': popu=' + str(len(obj)) + '; ' + str(obj[0]) for name, obj in self]
+        return [name + ': ' + str(obj) for name, obj in self]
 
     def reset(self):
-        for pred_list in self._dict.values():
-            for pred in pred_list:
-                pred.reset()
+        for pred_spec in self._dict.values():
+            pred_spec.reset()
 
 
 def set_with_default(param_in, default_val, intended_type='unspecified'):

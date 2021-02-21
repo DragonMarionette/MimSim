@@ -247,23 +247,21 @@ def main():
             new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue()
             while new_pred_name in pred_pool.names():
                 Sg.popup('Name cannot be shared with another predator species.', title='Alert')
-                new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue(new_pred_name + '_', new_pred_obj, new_pred_ct)
+                new_pred_name, new_pred_obj = pred_dialogue(new_pred_name + '_', new_pred_obj)
             if new_pred_obj is not None:
-                pred_pool.append(new_pred_name, new_pred_obj, new_pred_ct)
+                pred_pool.append(new_pred_name, new_pred_obj)
                 update_pred_list()
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
         elif event == '-EDIT_PRED-':
             old_pred_name = pred_pool.names()[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
-            new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue(old_pred_name,
-                                                                     pred_pool.species_rep(old_pred_name),
-                                                                     pred_pool.popu(old_pred_name))
+            new_pred_name, new_pred_obj = pred_dialogue(old_pred_name, pred_pool.species(old_pred_name))
             while new_pred_name != old_pred_name and new_pred_name in pred_pool.names():
                 Sg.popup('Name cannot be shared with another predator species.', title='Alert')
-                new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue(new_pred_name + '_', new_pred_obj, new_pred_ct)
+                new_pred_name, new_pred_obj = pred_dialogue(new_pred_name + '_', new_pred_obj)
             if new_pred_obj is not None:
                 pred_pool.remove(old_pred_name)
-                pred_pool.append(new_pred_name, new_pred_obj, new_pred_ct)
+                pred_pool.append(new_pred_name, new_pred_obj)
                 update_pred_list()
             sim_window.bring_to_front()
             sim_window['-PRED_LIST-'].set_value([])
@@ -271,13 +269,12 @@ def main():
         elif event == '-DUP_PRED-':
             pred_to_copy_name = pred_pool.names()[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
             new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue(pred_to_copy_name + '_copy',
-                                                                     pred_pool.species_rep(pred_to_copy_name),
-                                                                     pred_pool.popu(pred_to_copy_name))
+                                                                     pred_pool.species(pred_to_copy_name))
             while new_pred_name in pred_pool.names():
                 Sg.popup('Name cannot be shared with another predator species.', title='Alert')
-                new_pred_name, new_pred_obj, new_pred_ct = pred_dialogue(new_pred_name + '_', new_pred_obj, new_pred_ct)
+                new_pred_name, new_pred_obj = pred_dialogue(new_pred_name + '_', new_pred_obj)
             if new_pred_obj is not None:
-                pred_pool.append(new_pred_name, new_pred_obj, new_pred_ct)
+                pred_pool.append(new_pred_name, new_pred_obj)
                 update_pred_list()
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
@@ -303,15 +300,15 @@ def main():
         elif event == '-RUN-':
             sim = make_simulation(for_export=False)
             if sim:
-                try:
-                    verbose = sim_window['-VERBOSE-'].get()
-                    execution_dialog(output_folder, output_title, sim, verbose, extension=extension)
-                    Sg.popup(f"Success. Simulation saved to {output_folder + output_title + extension}.",
-                             title='Success')
-                except:
-                    Sg.popup('An unknown error occurred. Try checking that you have permission '
-                             'to write to the selected directory and you are not trying to write '
-                             'to a file that is open in another application.', title='Error')
+                # try:
+                verbose = sim_window['-VERBOSE-'].get()
+                execution_dialog(output_folder, output_title, sim, verbose, extension=extension)
+                Sg.popup(f"Success. Simulation saved to {output_folder + output_title + extension}.",
+                         title='Success')
+                # except:
+                #     Sg.popup('An unknown error occurred. Try checking that you have permission '
+                #              'to write to the selected directory and you are not trying to write '
+                #              'to a file that is open in another application.', title='Error')
 
         elif event == Sg.WIN_CLOSED:
             break
@@ -467,8 +464,8 @@ def prey_dialogue(prey_in_name=None, prey_in=None):
             else:  # Valid prey creation/edit
                 prey_window.close()
                 return (prey_window['spec_name'].get(),
-                        mim.Prey(phen=prey_window['phen'].get(), popu=prey_window['popu'].get(),
-                                 size=prey_window['size'].get(), pal=values['pal'], camo=values['camo']))
+                        mim.Prey(popu=prey_window['popu'].get(), phen=prey_window['phen'].get(),
+                                 size=prey_window['size'].get(), camo=values['camo'], pal=values['pal']))
         elif event == 'camo':
             prey_window['-CAMO_TEXT-'].update(value='{:.2f}'.format(values['camo']))
         elif event == 'pal':
@@ -478,7 +475,7 @@ def prey_dialogue(prey_in_name=None, prey_in=None):
             return None, None
 
 
-def pred_dialogue(pred_in_name=None, pred_obj_in=None, pred_ct_in=None):
+def pred_dialogue(pred_in_name=None, pred_obj_in=None):
     edit = pred_obj_in is not None
     text_size = (12, None)
     field_size = (25, None)
@@ -489,7 +486,7 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None, pred_ct_in=None):
                   tooltip='Name for the predator species')],
         [Sg.Text(text='Population:', size=text_size,
                  tooltip='Number of individuals of this species'),
-         Sg.Input(key='popu', default_text=pred_ct_in if edit else '', size=field_size,
+         Sg.Input(key='popu', default_text=pred_obj_in.popu if edit else '', size=field_size,
                   tooltip='Number of individuals of this species in the first generation')],
         [Sg.Text(text='Appetite:', size=text_size,
                  tooltip='Maximum amount of prey to eat before ceasing to pursue further prey items.'
@@ -519,7 +516,7 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None, pred_ct_in=None):
         event, values = pred_window.read()
         if event == '-CANCEL_PRED-' or event == Sg.WINDOW_CLOSED:
             pred_window.close()
-            return None, None, None
+            return None, None
         elif event == '-ADD_PRED-':
             if pred_window['spec_name'].get() == '':
                 Sg.popup('Predator name cannot be empty. Please enter a valid name.', title='Alert')
@@ -529,15 +526,16 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None, pred_ct_in=None):
                 app_valid = valid_positive_int(pred_window['app'].get())
                 mem_valid = valid_positive_int(pred_window['mem'].get())
                 if not (app_valid and mem_valid):
-                    # The defaulting described below happens in mimicry.Predator.__init__()
+                    # The defaulting described below happens in mimicry.PredatorSpecies.__init__()
                     Sg.popup(f"{'Appetite' if mem_valid else 'Memory' if app_valid else 'Appetite and memory both'} "
                              f"defaulted to the maximum possible value.", title='Alert')
 
                 pred_window.close()
                 return (pred_window['spec_name'].get(),
-                        mim.Predator(app=pred_window['app'].get(), mem=pred_window['mem'].get(),
-                                     insatiable=pred_window['insatiable'].get()),
-                        int(pred_window['popu'].get())
+                        mim.PredatorSpecies(app=pred_window['app'].get(), mem=pred_window['mem'].get(),
+                                            insatiable=pred_window['insatiable'].get(),
+                                            popu=int(pred_window['popu'].get())
+                                            )
                         )
 
 
@@ -558,7 +556,7 @@ def execution_dialog(folder, title, sim, verbose, extension):
     row_count = 0
     for _ in sim.iter_run(folder, alt_title=title, verbose=verbose, output=mc.CSV if as_csv else mc.XML):
         row_count += 1
-        progress = int(100*row_count/total_rows)
+        progress = int(100 * row_count / total_rows)
         progress_bar.update(progress)
         progress_text.update(f'Running simulation... {progress}% complete')
     if as_csv:
@@ -577,9 +575,9 @@ def about():
         [Sg.Text()],
         [Sg.Image(filename='../GUI/rsc/Viceroy256.png', key='-VICEROY-', enable_events=True)],
         [Sg.Text()],
-        [Sg.Button('Source on Github', key='-SOURCE-', size=(3*BUTTON_W, 1)),
+        [Sg.Button('Source on Github', key='-SOURCE-', size=(3 * BUTTON_W, 1)),
          Sg.Sizer(h_pixels=48),
-         Sg.Button(about_info['license'], key='-LICENSE-', size=(2*BUTTON_W, 1))]
+         Sg.Button(about_info['license'], key='-LICENSE-', size=(2 * BUTTON_W, 1))]
 
     ]
     about_win = Sg.Window(title='Edit Predator Species', layout=layout,
@@ -610,4 +608,5 @@ def valid_positive_float(value):
         return False
 
 
-main()
+if __name__ == '__main__':
+    main()
