@@ -2,12 +2,12 @@
 Prey and Predator classes for use in simulating predation, mimicry, etc.
 """
 
-import bisect
 import random
 import statistics
 import sys
 from typing import NoReturn, Union, Iterable, Tuple, List
-from copy import copy, deepcopy
+from collections import OrderedDict
+from copy import deepcopy
 
 # TODO: Let predator hunger and prey size influence likelihood of eating per encounter
 
@@ -48,39 +48,23 @@ class Prey:
 
 
 # PreyPool object representing all of the prey in one ecosystem
-class PreyPool:
+class PreyPool(OrderedDict):
     def __init__(self):
-        self._species_names = []  # list of species names only. Always sorted by the end of any method
-        self._dict = {}  # dict of name: Prey pairs
+        super().__init__()
 
     def __str__(self) -> str:
         return '/'.join(self.pretty_list())
 
-    def __iter__(self) -> Iterable[Tuple[str, Prey]]:
-        return ((name, self._dict[name]) for name in self.names)
-
-    def __len__(self) -> int:
-        return len(self._species_names)
-    
-    def __getitem__(self, item) -> Prey:
-        if not isinstance(item, str):
-            raise TypeError(f'Species name expected to be str. Instead got {type(item)}')
-        elif item not in self._species_names:
-            raise KeyError(f'No species named "{item}"')
-        else:
-            return self._dict[item]
-
-    @property
-    def dict(self) -> dict:
-        return copy(self._dict)
-
     @property
     def names(self) -> List[str]:
-        return copy(self._species_names)
+        return list(self.keys())
 
     @property
     def objects(self) -> List[Prey]:
-        return [self._dict[name] for name in self._species_names]
+        return list(self.values())
+
+    def __iter__(self) -> Iterable[Tuple[str, Prey]]:
+        return (pair for pair in self.items())
 
     def add(self, spec_name: str, prey_obj: Prey) -> bool:
         if not isinstance(spec_name, str):
@@ -88,18 +72,19 @@ class PreyPool:
         elif not isinstance(prey_obj, Prey):
             raise TypeError(f'prey_obj must be instance of Prey. Instead got {type(prey_obj)}')
 
-        if spec_name in self._dict:
+        if spec_name in self.names:
             return False
-        bisect.insort(self._species_names, spec_name)
-        self._dict[spec_name] = prey_obj
+        self[spec_name] = prey_obj
+        for name in self.names:
+            if name > spec_name:
+                self.move_to_end(name)
         return True
 
     def remove(self, spec_name: str) -> bool:
         if not isinstance(spec_name, str):
             raise TypeError(f'spec_name must be instance of string. Instead got {type(spec_name)}')
-        if spec_name in self._species_names:
-            self._species_names.remove(spec_name)
-            del self._dict[spec_name]
+        if spec_name in self.names:
+            del self[spec_name]
             return True
         return False
 
@@ -107,29 +92,25 @@ class PreyPool:
         self.remove(spec_name)
         self.add(spec_name, spec_obj)
 
-    def clear(self) -> NoReturn:
-        self._species_names = []
-        self._dict = {}
-
     def _popu_of(self, spec_name: str, surviving_only: bool = True) -> int:
         if not isinstance(spec_name, str):
             raise TypeError(f'spec_name must be instance of string. Instead got {type(spec_name)}')
         elif not isinstance(surviving_only, bool):
             raise TypeError(f'surviving_only must be instance of bool. Instead got {type(surviving_only)}')
-        elif spec_name not in self._species_names:
+        elif spec_name not in self.names:
             return 0
 
         elif surviving_only:
-            return self._dict[spec_name].popu
+            return self[spec_name].popu
         else:
-            return self._dict[spec_name].popu_orig
+            return self[spec_name].popu_orig
 
     def popu(self, spec_name: str = None, surviving_only: bool = True) -> int:
         if spec_name is None:
             if surviving_only:
-                return sum([p.popu for p in self._dict.values()])
+                return sum([p.popu for p in self.objects])
             else:
-                return sum([p.popu_orig for p in self._dict.values()])
+                return sum([p.popu_orig for p in self.objects])
         else:
             return self._popu_of(spec_name, surviving_only=surviving_only)
 
@@ -138,10 +119,10 @@ class PreyPool:
             popu_target = self.popu(surviving_only=False)
         prey_ct_latest = self.popu(surviving_only=True)
         if prey_ct_latest == 0:
-            for species in self._dict.values():
+            for species in self.objects:
                 species.popu = 0
         else:
-            for species in self._dict.values():
+            for species in self.objects:
                 species.popu = round(species.popu / prey_ct_latest * popu_target)
 
     def select(self, surviving_only: bool = True) -> Union[Tuple[str, Prey], Tuple[None, None]]:
@@ -151,7 +132,7 @@ class PreyPool:
         idx = random.randrange(available_popu)
         for species, prey_obj in self:
             if idx < prey_obj.popu:
-                return species, self._dict[species]
+                return species, self[species]
             else:
                 idx -= prey_obj.popu
         return None, None
@@ -261,39 +242,23 @@ class PredatorSpecies:
 
 
 # PredatorPool object representing all of the predators in one ecosystem
-class PredatorPool:
+class PredatorPool(OrderedDict):
     def __init__(self):
-        self._species_names = []  # list of species names only. Always sorted by the end of any method
-        self._dict = {}  # dict of name: list<Predator> pairs
+        super().__init__()
 
     def __str__(self) -> str:
         return '/'.join(self.pretty_list())
 
     def __iter__(self) -> Iterable[Tuple[str, PredatorSpecies]]:
-        return ((name, self._dict[name]) for name in self.names)
-
-    def __len__(self) -> int:
-        return len(self._species_names)
-
-    def __getitem__(self, item) -> PredatorSpecies:
-        if not isinstance(item, str):
-            raise TypeError(f'Species name expected to be str. Instead got {type(item)}')
-        elif item not in self._species_names:
-            raise ValueError(f'No species named "{item}"')
-        else:
-            return self._dict[item]
-
-    @property
-    def dict(self) -> dict:
-        return copy(self._dict)
+        return (pair for pair in self.items())
     
     @property
     def names(self) -> List[str]:
-        return copy(self._species_names)
+        return list(self.keys())
 
     @property
     def objects(self) -> List[PredatorSpecies]:
-        return [self._dict[name] for name in self._species_names]
+        return list(self.values())
 
     def add(self, spec_name: str, pred_spec: PredatorSpecies) -> bool:
         if not isinstance(spec_name, str):
@@ -301,18 +266,19 @@ class PredatorPool:
         elif not isinstance(pred_spec, PredatorSpecies):
             raise TypeError(f'prey_obj must be instance of Prey. Instead got {type(pred_spec)}')
 
-        if spec_name in self._dict:
+        if spec_name in self.names:
             return False
-        bisect.insort(self._species_names, spec_name)
-        self._dict[spec_name] = deepcopy(pred_spec)
+        self[spec_name] = deepcopy(pred_spec)
+        for name in self.names:
+            if name > spec_name:
+                self.move_to_end(name)
         return True
 
     def remove(self, spec_name: str) -> bool:
         if not isinstance(spec_name, str):
             raise TypeError(f'spec_name must be instance of string. Instead got {type(spec_name)}')
-        if spec_name in self._species_names:
-            self._species_names.remove(spec_name)
-            del self._dict[spec_name]
+        if spec_name in self.names:
+            del self[spec_name]
             return True
         return False
 
@@ -320,25 +286,21 @@ class PredatorPool:
         self.remove(spec_name)
         self.add(spec_name, pred_spec)
 
-    def clear(self) -> NoReturn:
-        self._species_names = []
-        self._dict = {}
-
     def _popu_of(self, spec_name: str, hungry_only=False) -> int:
         if not isinstance(spec_name, str):
             raise TypeError(f'spec_name must be instance of string. Instead got {type(spec_name)}')
         elif not isinstance(hungry_only, bool):
             raise TypeError(f'hungry_only must be instance of bool. Instead got {type(hungry_only)}')
-        elif spec_name not in self._species_names:
+        elif spec_name not in self.names:
             return 0
         elif hungry_only:
-            return sum(self._dict[spec_name].hungry(i) for i in range(len(self._dict[spec_name])))
+            return sum(self[spec_name].hungry(i) for i in range(len(self[spec_name])))
         else:
-            return len(self._dict[spec_name])
+            return len(self[spec_name])
 
     def popu(self, spec_name: str = None, hungry_only: bool = False) -> int:
         if spec_name is None:
-            return sum(self._popu_of(species, hungry_only=hungry_only) for species in self._species_names)
+            return sum(self._popu_of(species, hungry_only=hungry_only) for species in self.names)
         else:
             return self._popu_of(spec_name, hungry_only=hungry_only)
 
@@ -351,7 +313,7 @@ class PredatorPool:
             if idx < self._popu_of(species_name, hungry_only=hungry_only):
                 if hungry_only:
                     return species_name, [i for i in range(self._popu_of(species_name))
-                                          if self._dict[species_name].hungry(i)][idx]
+                                          if self[species_name].hungry(i)][idx]
                 else:
                     return species_name, idx
             else:
@@ -362,7 +324,7 @@ class PredatorPool:
         return [name + ': ' + str(obj) for name, obj in self]
 
     def reset(self) -> NoReturn:
-        for pred_spec in self._dict.values():
+        for pred_spec in self.objects:
             pred_spec.reset()
 
 

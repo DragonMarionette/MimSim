@@ -2,6 +2,7 @@
 GUI for Mimicry Simulator
 """
 
+import sys
 import ctypes
 import os.path as pth
 import platform
@@ -17,13 +18,13 @@ about_info = {
     'name': 'Mimicry Simulator (Beta)',
     'author': 'Dan Strauss (DragonMarionette)',
     'contributors': ['Emily Louden (deer-prudence)'],  # If you help, add yourself to this list!
-    'version': '0.3.0',
+    'version': '0.3.1',
     'date': '21 Feb. 2021',
     'license': 'Apache 2.0',
     'repo': 'https://github.com/DragonMarionette/MimSim'
 }
 
-# TODO: add option for graph of prey populations over time under certain circumstances (an other analysis tools?)
+# TODO: add option for graph of prey populations over time under certain circumstances (and other analysis tools?)
 
 HEADER_FONT = ('Segoe UI Semilight', 14)
 BODY_FONT = ('Segoe UI', 10)
@@ -36,14 +37,14 @@ def main():
         if sim_window['-TITLE-'].get() == '':  # input validation checks
             alert('Simulation title cannot be blank. Please enter a title.')
             return False
-        elif not valid_positive_int(sim_window['-ENCOUNTERS-'].get()):
-            alert('Number of encounters must be a positive integer.')
+        elif not valid_nonnegative_int(sim_window['-ENCOUNTERS-'].get()):
+            alert('Number of encounters must be a nonnegative integer.')
             return False
-        elif not valid_positive_int(sim_window['-GENERATIONS-'].get()):
-            alert('Number of generations must be a positive integer.')
+        elif not valid_nonnegative_int(sim_window['-GENERATIONS-'].get()):
+            alert('Number of generations must be a nonnegative integer.')
             return False
-        elif not valid_positive_int(sim_window['-REPETITIONS-'].get()):
-            alert('Number of trials must be a positive integer.')
+        elif not valid_nonnegative_int(sim_window['-REPETITIONS-'].get()):
+            alert('Number of trials must be a nonnegative integer.')
             return False
         elif not prey_pool.popu():
             alert('No prey to simulate. Please add at least one species under the "Prey species" tab.')
@@ -139,28 +140,28 @@ def main():
             if xml_in:
                 if Sg.popup_ok_cancel('This will overwrite any parameters you\'ve already entered. Proceed?',
                                       title='Confirm') == 'OK':
-                    try:
-                        sim_in = xt.load_sim(xml_in)
-                        # Meta properties
-                        sim_window['-TITLE-'].update(value=sim_in.title)
-                        sim_window['-ENCOUNTERS-'].update(value=sim_in.encounters)
-                        sim_window['-GENERATIONS-'].update(value=sim_in.generations)
-                        sim_window['-REPETITIONS-'].update(value=sim_in.repetitions)
-                        sim_window['-REPOPULATE-'].update(value=sim_in.repopulate)
+                    # try:
+                    sim_in = xt.load_sim(xml_in)
+                    # Meta properties
+                    sim_window['-TITLE-'].update(value=sim_in.title)
+                    sim_window['-ENCOUNTERS-'].update(value=sim_in.encounters)
+                    sim_window['-GENERATIONS-'].update(value=sim_in.generations)
+                    sim_window['-REPETITIONS-'].update(value=sim_in.repetitions)
+                    sim_window['-REPOPULATE-'].update(value=sim_in.repopulate)
 
-                        # Prey and pred properties
-                        prey_pool = sim_in.prey_pool
-                        update_prey_list()
-                        pred_pool = sim_in.pred_pool
-                        update_pred_list()
-                    except xt.et.XMLSyntaxError:
-                        error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
-                              f'simulation parameters by hand.')
-                    except AssertionError:
-                        error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
-                              f'simulation parameters by hand.')
-                    except:
-                        error(f'And unknown error occurred while reading the file {xml_in}.')
+                    # Prey and pred properties
+                    prey_pool = sim_in.prey_pool
+                    update_prey_list()
+                    pred_pool = sim_in.pred_pool
+                    update_pred_list()
+                    # except xt.et.XMLSyntaxError:
+                    #     error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
+                    #           f'simulation parameters by hand.')
+                    # except AssertionError:
+                    #     error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
+                    #           f'simulation parameters by hand.')
+                    # except:
+                    #     error(f'And unknown error occurred while reading the file {xml_in}.')
         elif event == 'Export...':
             sim = make_simulation(for_export=True)
             if sim:
@@ -445,7 +446,7 @@ def prey_dialogue(prey_in_name=None, prey_in=None) -> Union[Tuple[str, mim.Prey]
         if event == '-ADD_PREY-':
             if prey_window['spec_name'].get() == '':
                 alert('Prey name cannot be empty. Please enter a valid name.')
-            elif not valid_positive_int(prey_window['popu'].get()):
+            elif not valid_nonnegative_int(prey_window['popu'].get()):
                 alert('Prey population must be a positive integer.')
             elif not valid_positive_float(prey_window['size'].get()):
                 alert('Prey size must be a positive number.')
@@ -508,19 +509,20 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None) -> Union[Tuple[str, mim.P
         elif event == '-ADD_PRED-':
             if pred_window['spec_name'].get() == '':
                 alert('Predator name cannot be empty. Please enter a valid name.')
-            elif not valid_positive_int(pred_window['popu'].get()):
+            elif not valid_nonnegative_int(pred_window['popu'].get()):
                 alert('Population must be a positive integer.')
             else:  # Valid predator creation/edit
-                app_valid = valid_positive_int(pred_window['app'].get())
-                mem_valid = valid_positive_int(pred_window['mem'].get())
+                app_valid = valid_nonnegative_int(pred_window['app'].get())
+                mem_valid = valid_nonnegative_int(pred_window['mem'].get())
+                app = pred_window['app'].get() if app_valid else int(sys.maxsize)
+                mem = pred_window['mem'].get() if app_valid else int(sys.maxsize)
                 if not (app_valid and mem_valid):
-                    # The defaulting described below happens in mimicry.PredatorSpecies.__init__()
                     alert(f"{'Appetite' if mem_valid else 'Memory' if app_valid else 'Appetite and memory both'} "
                           f"defaulted to the maximum possible value.")
 
                 pred_window.close()
                 return (pred_window['spec_name'].get(),
-                        mim.PredatorSpecies(app=pred_window['app'].get(), mem=pred_window['mem'].get(),
+                        mim.PredatorSpecies(app=app, mem=mem,
                                             insatiable=pred_window['insatiable'].get(),
                                             popu=int(pred_window['popu'].get())
                                             )
@@ -590,9 +592,9 @@ def about():
             break
 
 
-def valid_positive_int(value):
+def valid_nonnegative_int(value):
     try:
-        return int(value) > 0
+        return int(value) >= 0
     except ValueError:
         return False
 
