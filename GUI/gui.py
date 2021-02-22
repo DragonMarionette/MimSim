@@ -19,7 +19,7 @@ about_info = {
     'author': 'Dan Strauss (DragonMarionette)',
     'contributors': ['Emily Louden (deer-prudence)'],  # If you help, add yourself to this list!
     'version': '0.3.1',
-    'date': '21 Feb. 2021',
+    'date': '22 Feb. 2021',
     'license': 'Apache 2.0',
     'repo': 'https://github.com/DragonMarionette/MimSim'
 }
@@ -81,9 +81,15 @@ def main():
 
     def update_prey_list():  # Make prey listbox match prey_dict
         sim_window['-PREY_LIST-'].update(prey_pool.pretty_list())
+        
+    def prey_selection():  # name of currently selected Prey
+        return prey_pool.names[sim_window['-PREY_LIST-'].get_indexes()[0]]
 
     def update_pred_list():  # Make predator listbox match prey_dict
         sim_window['-PRED_LIST-'].update(pred_pool.pretty_list())
+    
+    def pred_selection():  # name of currently selected PredatorSpecies
+        return pred_pool.names[sim_window['-PRED_LIST-'].get_indexes()[0]]
 
     def enable_prey_buttons(boolean):
         disabled = not boolean
@@ -140,28 +146,28 @@ def main():
             if xml_in:
                 if Sg.popup_ok_cancel('This will overwrite any parameters you\'ve already entered. Proceed?',
                                       title='Confirm') == 'OK':
-                    # try:
-                    sim_in = xt.load_sim(xml_in)
-                    # Meta properties
-                    sim_window['-TITLE-'].update(value=sim_in.title)
-                    sim_window['-ENCOUNTERS-'].update(value=sim_in.encounters)
-                    sim_window['-GENERATIONS-'].update(value=sim_in.generations)
-                    sim_window['-REPETITIONS-'].update(value=sim_in.repetitions)
-                    sim_window['-REPOPULATE-'].update(value=sim_in.repopulate)
+                    try:
+                        sim_in = xt.load_sim(xml_in)
+                        # Meta properties
+                        sim_window['-TITLE-'].update(value=sim_in.title)
+                        sim_window['-ENCOUNTERS-'].update(value=sim_in.encounters)
+                        sim_window['-GENERATIONS-'].update(value=sim_in.generations)
+                        sim_window['-REPETITIONS-'].update(value=sim_in.repetitions)
+                        sim_window['-REPOPULATE-'].update(value=sim_in.repopulate)
 
-                    # Prey and pred properties
-                    prey_pool = sim_in.prey_pool
-                    update_prey_list()
-                    pred_pool = sim_in.pred_pool
-                    update_pred_list()
-                    # except xt.et.XMLSyntaxError:
-                    #     error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
-                    #           f'simulation parameters by hand.')
-                    # except AssertionError:
-                    #     error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
-                    #           f'simulation parameters by hand.')
-                    # except:
-                    #     error(f'And unknown error occurred while reading the file {xml_in}.')
+                        # Prey and pred properties
+                        prey_pool = sim_in.prey_pool
+                        update_prey_list()
+                        pred_pool = sim_in.pred_pool
+                        update_pred_list()
+                    except xt.et.XMLSyntaxError:
+                        error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
+                              f'simulation parameters by hand.')
+                    except AssertionError:
+                        error(f'The file {xml_in} is not a valid simulation file. Please choose another or enter '
+                              f'simulation parameters by hand.')
+                    except:
+                        error(f'And unknown error occurred while reading the file {xml_in}.')
         elif event == 'Export...':
             sim = make_simulation(for_export=True)
             if sim:
@@ -201,7 +207,7 @@ def main():
             sim_window['-PREY_LIST-'].set_value([])
             enable_prey_buttons(False)
         elif event == '-EDIT_PREY-':
-            old_prey_name = prey_pool.names[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
+            old_prey_name = prey_selection()
             new_prey_name, new_prey_obj = prey_dialogue(old_prey_name, prey_pool[old_prey_name])
             while new_prey_name != old_prey_name and new_prey_name in prey_pool.names:
                 alert('Name cannot be shared with another prey species.')
@@ -214,7 +220,7 @@ def main():
             sim_window['-PREY_LIST-'].set_value([])
             enable_prey_buttons(False)
         elif event == '-DUP_PREY-':
-            prey_to_copy_name = prey_pool.names[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
+            prey_to_copy_name = prey_selection()
             new_prey_name, new_prey_obj = prey_dialogue(prey_to_copy_name + '_copy', prey_pool[prey_to_copy_name])
             while new_prey_name in prey_pool.names:
                 alert('Name cannot be shared with another prey species.')
@@ -225,7 +231,7 @@ def main():
             sim_window['-PREY_LIST-'].set_value([])
             enable_prey_buttons(False)
         elif event == '-DEL_PREY-':
-            prey_unwanted_name = prey_pool.names[sim_window['-PREY_LIST-'].get_indexes()[0]]  # current selection
+            prey_unwanted_name = prey_selection()
             if Sg.popup_ok_cancel(f'Are you sure you want to delete prey species "{prey_unwanted_name}"?',
                                   title='Confirm') == 'OK':
                 prey_pool.remove(prey_unwanted_name)
@@ -251,7 +257,7 @@ def main():
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
         elif event == '-EDIT_PRED-':
-            old_pred_name = pred_pool.names[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
+            old_pred_name = pred_selection()
             new_pred_name, new_pred_obj = pred_dialogue(old_pred_name, pred_pool[old_pred_name])
             while new_pred_name != old_pred_name and new_pred_name in pred_pool.names:
                 alert('Name cannot be shared with another predator species.')
@@ -264,7 +270,7 @@ def main():
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
         elif event == '-DUP_PRED-':
-            pred_to_copy_name = pred_pool.names[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
+            pred_to_copy_name = pred_selection()
             new_pred_name, new_pred_obj = pred_dialogue(pred_to_copy_name + '_copy', pred_pool[pred_to_copy_name])
             while new_pred_name in pred_pool.names:
                 alert('Name cannot be shared with another predator species.')
@@ -275,7 +281,7 @@ def main():
             sim_window['-PRED_LIST-'].set_value([])
             enable_pred_buttons(False)
         elif event == '-DEL_PRED-':
-            pred_unwanted_name = pred_pool.names[sim_window['-PRED_LIST-'].get_indexes()[0]]  # current selection
+            pred_unwanted_name = pred_selection()
             if Sg.popup_ok_cancel(f'Are you sure you want to delete predator species "{pred_unwanted_name}"?',
                                   title='Confirm') == 'OK':
                 pred_pool.remove(pred_unwanted_name)
