@@ -2,7 +2,7 @@
 Prey and Predator classes for use in simulating predation, mimicry, etc.
 """
 
-import bisect
+from numbers import Real
 import random
 import statistics
 import sys
@@ -23,28 +23,86 @@ from copy import deepcopy
 # Prey object representing a species of prey
 class Prey:
     def __init__(self, popu: int = None, phen: str = None, size: float = None, camo: float = None, pal: float = None):
-        self.phen = set_with_default(phen, '', 'str')
-        self.camo = set_with_default(camo, 0.0, 'float')
-        self.pal = set_with_default(pal, 1.0, 'float')
-        self.size = set_with_default(size, 1.0, 'float')
-        self.popu_orig = set_with_default(popu, 0, 'int')
-        self.popu = self.popu_orig
-
-        if not 0 <= self.pal <= 1:
-            raise ValueError('Palatability must be between 0 and 1 inclusive')
-
-        if not 0 <= self.pal <= 1:
-            raise ValueError('Camo must be between 0 and 1 inclusive')
+        self._popu = 0 if popu is None else popu
+        self._popu_orig = self.popu
+        self._phen = 'None' if phen is None else phen
+        self._size = 1.0 if size is None else size
+        self._camo = 0.0 if camo is None else camo
+        self._pal = 1 if pal is None else pal
 
     def __str__(self) -> str:
         return self.string()
+    
+    @property
+    def phen(self):
+        return self._phen
+    
+    @phen.setter
+    def phen(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError(f'phen expected to be instance of str. Instead got {type(value)}')
+        elif not value:
+            raise ValueError('phen string cannot be empty')
+        self._phen = value
+    
+    @property
+    def camo(self):
+        return self._camo
+    
+    @camo.setter
+    def camo(self, value: float):
+        if not isinstance(value, Real):
+            raise TypeError(f'camo expected to be a float. Instead got {type(value)}')
+        elif not 0.0 <= value <= 1.0:
+            raise ValueError(f'camo must be between 0.0 and 1.0 inclusive. Instead got {value}')
+        self._camo = value
+    
+    @property
+    def pal(self):
+        return self._pal
+    
+    @pal.setter
+    def pal(self, value: float):
+        if not isinstance(value, Real):
+            raise TypeError(f'pal expected to be a float. Instead got {type(value)}')
+        elif not 0.0 <= value <= 1.0:
+            raise ValueError(f'pal must be between 0.0 and 1.0 inclusive. Instead got {value}')
+        self._pal = value
+    
+    @property
+    def size(self):
+        return self._size
+    
+    @size.setter
+    def size(self, value: float):
+        if not isinstance(value, Real):
+            raise TypeError(f'size expected to be a float. Instead got {type(value)}')
+        elif value <= 0:
+            raise ValueError(f'size must be positive. Instead got {value}')
+        self._size = value
+    
+    @property
+    def popu(self):
+        return self._popu
+    
+    @popu.setter
+    def popu(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError(f'popu expected to be an int. Instead got {type(value)}')
+        elif value < 0:
+            raise ValueError(f'popu must not be negative. Instead got {value}')
+        self._popu = value
+    
+    @property
+    def popu_orig(self):
+        return self._popu_orig
 
     def string(self, full: bool = False) -> str:
-        fields = ['popu', 'popu_orig', 'phen', 'size', 'camo', 'pal'] if full \
-            else ['popu', 'phen', 'size', 'camo', 'pal']
+        fields = ['_popu', '_popu_orig', '_phen', '_size', '_camo', '_pal'] if full \
+            else ['_popu', '_phen', '_size', '_camo', '_pal']
         kv_pairs = []
         for field in fields:
-            kv_pairs.append(f'{field}={vars(self)[field]}')
+            kv_pairs.append(f'{field[1:]}={vars(self)[field]}')
         return '; '.join(kv_pairs)
 
 
@@ -102,9 +160,7 @@ class PreyPool:
         del self[spec_name]
 
     def replace(self, spec_name: str, prey_spec: Prey, force: bool = False) -> NoReturn:
-        if not force:
-            self.remove(spec_name)
-        elif spec_name in self.names:
+        if (not force) or (spec_name in self.names):
             self.remove(spec_name)
 
         self.add(spec_name, prey_spec)
@@ -127,10 +183,7 @@ class PreyPool:
 
     def popu(self, spec_name: str = None, surviving_only: bool = True) -> int:
         if spec_name is None:
-            if surviving_only:
-                return sum([p.popu for p in self.objects])
-            else:
-                return sum([p.popu_orig for p in self.objects])
+            return sum([self._popu_of(p, surviving_only=surviving_only) for p in self.names])
         else:
             return self._popu_of(spec_name, surviving_only=surviving_only)
 
@@ -149,6 +202,8 @@ class PreyPool:
     def repopulate(self, popu_target: int = None) -> NoReturn:
         if popu_target is None:
             popu_target = self.popu(surviving_only=False)
+        else:
+            popu_target = int(popu_target)
         prey_ct_latest = self.popu(surviving_only=True)
         if prey_ct_latest == 0:
             for species in self.objects:
@@ -161,6 +216,7 @@ class PreyPool:
         return [name + ': ' + str(obj) for name, obj in self]
 
 
+# PredatorSpecies object representing a species of predator
 class PredatorSpecies:
     class Pred:
         def __init__(self):
@@ -173,13 +229,13 @@ class PredatorSpecies:
                     self.prefs[species.phen] = []
 
     def __init__(self, popu, prey_types: PreyPool = None, app: int = None, mem: int = None, insatiable: bool = None):
-        self.app = set_with_default(app, int(sys.maxsize), 'int')
-        self.mem = set_with_default(mem, int(sys.maxsize), 'int')
-        self.insatiable = set_with_default(insatiable, True, 'bool')
-        self.rep = self.Pred()
+        self.app = int(sys.maxsize) if app is None else app
+        self.mem = int(sys.maxsize) if mem is None else mem
+        self.insatiable = True if insatiable is None else insatiable
+        rep = self.Pred()
         if prey_types is not None:
-            self.rep.learn_all(prey_types)
-        self._lst = [deepcopy(self.rep) for _ in range(popu)]
+            rep.learn_all(prey_types)
+        self._lst = [deepcopy(rep) for _ in range(popu)]
 
     def __getitem__(self, item: int) -> Pred:
         return self._lst[item]
@@ -189,13 +245,45 @@ class PredatorSpecies:
 
     def __str__(self) -> str:
         kv_pairs = [f'popu={self.popu}']
-        for field in ['app', 'mem', 'insatiable']:
+        for field in ['_app', '_mem', '_insatiable']:
             value = vars(self)[field]
             if value >= int(sys.maxsize):
                 value = 'max'
-            kv_pairs.append(f'{field}={value}')
+            kv_pairs.append(f'{field[1:]}={value}')
         return '; '.join(kv_pairs)
 
+    @property
+    def app(self):
+        return self._app
+    
+    @app.setter
+    def app(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError(f'app expected to be an int. Instead got {type(value)}')
+        elif value < 0:
+            raise ValueError(f'app must not be negative')
+        self._app = value
+
+    @property
+    def mem(self):
+        return self._mem
+    
+    @mem.setter
+    def mem(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError(f'mem expected to be an int. Instead got {type(value)}')
+        elif value < 0:
+            raise ValueError(f'mem must not be negative')
+        self._mem = value
+
+    @property
+    def insatiable(self):
+        return self._insatiable
+    
+    @insatiable.setter
+    def insatiable(self, value: bool):
+        self._insatiable = bool(value)
+    
     @property
     def popu(self):
         return len(self)
@@ -368,28 +456,3 @@ class PredatorPool:
 
     def pretty_list(self) -> List[str]:
         return [name + ': ' + str(obj) for name, obj in self]
-
-
-def set_with_default(param_in, default_val, intended_type='unspecified'):
-    cast = {
-        'int': lambda x: int(float(x)),
-        int: lambda x: int(float(x)),
-        'float': float,
-        float: float,
-        'str': str,
-        str: str,
-        'bool': bool,
-        bool: bool,
-        'dict': dict,
-        dict: dict,
-        'unspecified': lambda x: x
-    }
-    if param_in is None or (intended_type != 'str' and param_in == ''):
-        return default_val
-    else:
-        try:
-            return cast[intended_type](param_in)
-        except ValueError:
-            raise ValueError(f'Could not cast {type(param_in)} to type "{intended_type}"')
-            # print(f'Could not cast "{param_in}" to {intended_type}; Used default value of {default_val}')
-            # return default_val

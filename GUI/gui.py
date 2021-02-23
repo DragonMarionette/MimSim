@@ -520,15 +520,15 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None) -> Union[Tuple[str, mim.P
             else:  # Valid predator creation/edit
                 app_valid = valid_nonnegative_int(pred_window['app'].get())
                 mem_valid = valid_nonnegative_int(pred_window['mem'].get())
-                app = pred_window['app'].get() if app_valid else int(sys.maxsize)
-                mem = pred_window['mem'].get() if app_valid else int(sys.maxsize)
+                app = int(pred_window['app'].get()) if app_valid else int(sys.maxsize)
+                mem = int(pred_window['mem'].get()) if app_valid else int(sys.maxsize)
                 if not (app_valid and mem_valid):
                     alert(f"{'Appetite' if mem_valid else 'Memory' if app_valid else 'Appetite and memory both'} "
                           f"defaulted to the maximum possible value.")
 
                 pred_window.close()
                 return (pred_window['spec_name'].get(),
-                        mim.PredatorSpecies(app=app, mem=mem,
+                        mim.PredatorSpecies(app=app if app_valid else None, mem=mem if mem_valid else None,
                                             insatiable=pred_window['insatiable'].get(),
                                             popu=int(pred_window['popu'].get())
                                             )

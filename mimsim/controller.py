@@ -80,19 +80,97 @@ class Simulation:
     def __init__(self, title: str = None, prey_pool: mim.PreyPool = mim.PreyPool(),
                  pred_pool: mim.PredatorPool = mim.PredatorPool(), encounters: int = None, generations: int = None,
                  repetitions: int = None, repopulate: bool = False):
-        self.title = mim.set_with_default(title, '')
-        self.prey_pool = prey_pool
-        self.pred_pool = pred_pool
+        self.title = 'untitled' if title is None else title
+
+        self.prey_pool = mim.PreyPool() if prey_pool is None else prey_pool
+        self.pred_pool = mim.PredatorPool() if pred_pool is None else pred_pool
         for pred_spec in self.pred_pool.objects:
             for pred in pred_spec:
                 pred.learn_all(self.prey_pool)
-        self.encounters = mim.set_with_default(encounters, 1, intended_type='int')
-        self.generations = mim.set_with_default(generations, 1, intended_type='int')
-        self.repetitions = mim.set_with_default(repetitions, 1, intended_type='int')
-        self.repopulate = mim.set_with_default(repopulate, False)
+
+        self.encounters = 1 if encounters is None else encounters
+        self.generations = 1 if generations is None else generations
+        self.repetitions = 1 if repetitions is None else repetitions
+        self.repopulate = False if repopulate is None else repopulate
 
     def __str__(self) -> str:
         return f'<Simulation "{self.title}">'
+
+    @property
+    def title(self):
+        return self._title
+    
+    @title.setter
+    def title(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError(f'title expected to be a string. Instead got {type(value)}')
+        elif not value:
+            raise ValueError(f'title must not be an empty string')
+        self._title = value
+
+    @property
+    def prey_pool(self):
+        return self._prey_pool
+    
+    @prey_pool.setter
+    def prey_pool(self, value: mim.PreyPool):
+        if not isinstance(value, mim.PreyPool):
+            raise TypeError(f'prey_pool expected to be a PreyPool. Instead got {type(value)}')
+        self._prey_pool = value
+
+    @property
+    def pred_pool(self):
+        return self._pred_pool
+    
+    @pred_pool.setter
+    def pred_pool(self, value: mim.PredatorPool):
+        if not isinstance(value, mim.PredatorPool):
+            raise TypeError(f'pred_pool expected to be a PredPool. Instead got {type(value)}')
+        self._pred_pool = value
+
+    @property
+    def encounters(self):
+        return self._encounters
+    
+    @encounters.setter
+    def encounters(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError(f'encounters expected to be an int. Instead got {type(value)}')
+        elif value < 0:
+            raise ValueError(f'encounters must not be negative')
+        self._encounters = value
+
+    @property
+    def generations(self):
+        return self._generations
+    
+    @generations.setter
+    def generations(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError(f'generations expected to be an int. Instead got {type(value)}')
+        elif value <= 0:
+            raise ValueError(f'generations must be positive')
+        self._generations = value
+
+    @property
+    def repetitions(self):
+        return self._repetitions
+    
+    @repetitions.setter
+    def repetitions(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError(f'repetitions expected to be an int. Instead got {type(value)}')
+        elif value <= 0:
+            raise ValueError(f'repetitions must be positive')
+        self._repetitions = value
+
+    @property
+    def repopulate(self):
+        return self._repopulate
+    
+    @repopulate.setter
+    def repopulate(self, value: bool):
+        self._repopulate = bool(value)
 
     # run self with no return value
     def run(self, file_destination: str, verbose: bool = False, output: str = CSV, alt_title: str = None) \
