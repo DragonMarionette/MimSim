@@ -13,7 +13,6 @@ write_results(sim, filename, verbose=False) -> None
 import lxml.etree as et
 from typing import NoReturn, Tuple, Iterable
 # imports from this package
-from mimsim import controller as mc
 from mimsim import mimicry as mim
 
 
@@ -82,14 +81,14 @@ def load_pred_pool(file_path_in: str) -> mim.PredatorPool:
 
 
 # return the Simulation described in a given .simu.xml file
-def load_sim(file_path_in: str) -> mc.Simulation:
+def load_sim(file_path_in: str) -> mim.Simulation:
     sim_tree = et.parse(file_path_in)
     validate_sim(sim_tree)
     root = sim_tree.getroot()
     params = {elem.tag: elem.text for elem in root.find('params')}
     prey_pool = _prey_from_root(root)
     pred_pool = _pred_from_root(root)
-    return mc.Simulation(
+    return mim.Simulation(
         title=params['title'],
         encounters=int(params['encounters']),
         generations=int(params['generations']),
@@ -100,7 +99,7 @@ def load_sim(file_path_in: str) -> mc.Simulation:
     )
 
 
-def _build_desc(sim: mc.Simulation) -> et.ElementTree:
+def _build_desc(sim: mim.Simulation) -> et.ElementTree:
     root = et.Element('simulation')
 
     params = et.SubElement(root, 'params')
@@ -133,7 +132,7 @@ def _build_desc(sim: mc.Simulation) -> et.ElementTree:
 
 
 # write description of sim to the specified .simu.xml file
-def write_desc(sim: mc.Simulation, destination_folder: str, alt_title=None) \
+def write_desc(sim: mim.Simulation, destination_folder: str, alt_title=None) \
         -> NoReturn:
     if not destination_folder or destination_folder[-1] != '/':
         destination_folder += '/'
@@ -144,7 +143,7 @@ def write_desc(sim: mc.Simulation, destination_folder: str, alt_title=None) \
 
 # write description and results of sim to the specified .simu.xml file, yielding each generation
 # not recommended to use; prefer the wrapper sim.iter_run(..., output=controller.XML)
-def write_results(sim: mc.Simulation, filename: str, verbose: bool = False) \
+def write_results(sim: mim.Simulation, filename: str, verbose: bool = False) \
         -> Iterable[Tuple[mim.PreyPool, mim.PredatorPool, int]]:
     sim_tree = _build_desc(sim)
     root = sim_tree.getroot()

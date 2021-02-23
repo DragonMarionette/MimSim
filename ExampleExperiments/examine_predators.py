@@ -1,8 +1,8 @@
-from mimsim import controller as mc, xml_tools as xt
+from mimsim import mimicry as mim, xml_tools as xt
 
 sim = xt.load_sim('examine_predators.simu.xml')
 
-prey_out, predators_out = mc.one_gen(sim.prey_pool, sim.pred_pool, sim.encounters)
+prey_out, predators_out = mim.one_gen(sim.prey_pool, sim.pred_pool, sim.encounters)
 
 for prey_name, prey_obj in prey_out:
     print(f'Remaining population of species {prey_name} is {prey_obj.popu}.')

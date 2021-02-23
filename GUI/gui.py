@@ -10,15 +10,13 @@ import PySimpleGUI as Sg
 import webbrowser
 from typing import Union, Tuple
 
-import mimsim.controller as mc
-import mimsim.mimicry as mim
-import mimsim.xml_tools as xt
+from mimsim import mimicry as mim, xml_tools as xt
 
 about_info = {
     'name': 'Mimicry Simulator (Beta)',
     'author': 'Dan Strauss (DragonMarionette)',
     'contributors': ['Emily Louden (deer-prudence)'],  # If you help, add yourself to this list!
-    'version': '0.3.1',
+    'version': '0.4.0',
     'date': '22 Feb. 2021',
     'license': 'Apache 2.0',
     'repo': 'https://github.com/DragonMarionette/MimSim'
@@ -58,18 +56,18 @@ def main():
             return False
         else:
             xml_exists = pth.exists(output_path)
-            csv_exists = pth.exists(output_folder + output_title + mc.CSV)
+            csv_exists = pth.exists(output_folder + output_title + mim.CSV)
             overwrite_list = []
             if xml_exists:
                 overwrite_list.append(output_path)
-            if csv_exists and extension == mc.CSV and not for_export:
-                overwrite_list.append(output_folder + output_title + mc.CSV)
+            if csv_exists and extension == mim.CSV and not for_export:
+                overwrite_list.append(output_folder + output_title + mim.CSV)
             if overwrite_list:
                 overwrite_alert_string = f"The following file{'s' * (len(overwrite_list) > 1)} will be overwritten:\n" \
                                          + '\n'.join(overwrite_list) + '\n\n OK to proceed?'
                 if not Sg.popup_ok_cancel(overwrite_alert_string, title='Confirm') == 'OK':
                     return False
-            return mc.Simulation(
+            return mim.Simulation(
                 title=sim_window['-TITLE-'].get(),
                 prey_pool=prey_pool,
                 pred_pool=pred_pool,
@@ -133,7 +131,7 @@ def main():
     output_path = ''
     output_folder = ''
     output_title = ''
-    extension = mc.CSV
+    extension = mim.CSV
 
     # Loop to listen and handle events
     while True:
@@ -295,10 +293,10 @@ def main():
             output_folder = '/'.join(output_path.split('/')[:-1]) + '/'
             output_title = output_path.split('/')[-1][:-9]
             sim_window['-FILENAME_READOUT-'].update(value=output_path)
-        elif event == mc.XML:
-            extension = mc.XML
-        elif event == mc.CSV:
-            extension = mc.CSV
+        elif event == mim.XML:
+            extension = mim.XML
+        elif event == mim.CSV:
+            extension = mim.CSV
         elif event == '-RUN-':
             sim = make_simulation(for_export=False)
             if sim:
@@ -317,8 +315,8 @@ def make_full_layout():
         [Sg.Text()],  # A line of space. using Sg.Text here instead of Sg.Sizer because Sizer height depends on DPI
         [Sg.Text('Execution', font=HEADER_FONT)],
         [Sg.Text('Output type:')],
-        [Sg.Radio('CSV + descriptive *.simu.xml', 'output_selection', key=mc.CSV, enable_events=True, default=True)],
-        [Sg.Radio('Full results in *.simu.xml', 'output_selection', key=mc.XML, enable_events=True, default=False)],
+        [Sg.Radio('CSV + descriptive *.simu.xml', 'output_selection', key=mim.CSV, enable_events=True, default=True)],
+        [Sg.Radio('Full results in *.simu.xml', 'output_selection', key=mim.XML, enable_events=True, default=False)],
         [Sg.HorizontalSeparator()],
         [Sg.Checkbox(key='-VERBOSE-', text='Include all generations in output',
                      tooltip='Output a row for each  generation of each trial; if turned off, only the last '
@@ -536,7 +534,7 @@ def pred_dialogue(pred_in_name=None, pred_obj_in=None) -> Union[Tuple[str, mim.P
 
 
 def execution_dialog(folder, title, sim, verbose, extension):
-    as_csv = extension == mc.CSV
+    as_csv = extension == mim.CSV
     progress_text = Sg.Text('Running simulation... 0% complete', justification='c')
     progress_bar = Sg.ProgressBar(100, orientation='h', size=(60, 48))
     # cancel_button = Sg.Button('Cancel', key='-CANCEL_EXEC-', size=(BUTTON_W, 1))
@@ -552,7 +550,7 @@ def execution_dialog(folder, title, sim, verbose, extension):
     total_rows = sim.repetitions * ((sim.generations + int(sim.repopulate)) if verbose else 1)
     row_count = 0
     try:
-        for _ in sim.iter_run(folder, alt_title=title, verbose=verbose, output=mc.CSV if as_csv else mc.XML):
+        for _ in sim.iter_run(folder, alt_title=title, verbose=verbose, output=mim.CSV if as_csv else mim.XML):
             row_count += 1
             progress = int(100 * row_count / total_rows)
             progress_bar.update(progress)
